@@ -33,8 +33,31 @@ These decisions are load-bearing for the entire platform. Changing them later is
 - File-storage paths are prefixed with `workspace_id/`.
 - Postgres RLS policies mirror the same boundary as a second line of defense.
 
-### 3.2 Layering
-`api/v1 (routes)` → `services (business logic)` → `repositories (data access)`. Routes never touch the DB directly. Services never build raw SQL. Dependency injection supplies the DB session, current user, and workspace context.
+### 3.2 Code organization — vertical slices
+
+> **Amended 2026-08-11.** Replaces the previous horizontal layering (`api/v1 → services → repositories`), which grouped code by technical role. The platform now organizes **by feature slice**. Rationale: a horizontal layout means every feature is smeared across five packages, so adding a chatbot or a flow node touches `api/`, `services/`, `repositories/`, `schemas/`, and `models/` at once, and no directory tells you what the system does. With eleven feature areas coming across five phases, slices keep each one independently readable, testable, and deletable.
+
+**Backend — vertical slice.** Each slice owns its models, schemas, repository, use cases, and router:
+
+```
+app/
+  core/          # config, database, security primitives, errors, envelope, rate limiter — no domain logic
+  shared/        # shared kernel: ORM mixins, WorkspaceContext, permission constants. Deliberately tiny.
+  slices/<name>/
+    models.py    schemas.py    repository.py
+    use_cases/   # one module per operation
+    router.py    # thin: parse → call use case → envelope
+    api.py       # the slice's PUBLIC interface — the only thing other slices may import
+    tests/       # slice-local tests live with the slice
+```
+
+**The one hard rule:** a slice may import `core`, `shared`, and other slices' `api.py` — never another slice's `repository.py`, `models.py`, or `use_cases/`. This is what keeps slices from silently fusing back into a ball of mud. It is enforced mechanically by an **`import-linter` contract in CI**, not by convention or code review.
+
+Within a slice the layering discipline still holds: routers never touch the DB, use cases never build raw SQL, repositories take `workspace_id` as a mandatory argument. Vertical slicing changes *where* code lives, not whether these boundaries exist.
+
+**Frontend — Feature-Sliced Design**, the direct analogue. Layers, each importing only from those below it: `app` (providers, router, composition root) → `pages` → `widgets` → `features` → `entities` → `shared`. Enforced by ESLint boundary rules. Frontend `entities` and `features` are named to mirror backend slices, so a change to workspace switching has one obvious home on each side.
+
+Cross-slice dependencies form a DAG, never a cycle. Where two slices genuinely need each other, that is a signal they are one slice.
 
 ### 3.3 API contract
 - Base URL `/api/v1/`, URL-based versioning.

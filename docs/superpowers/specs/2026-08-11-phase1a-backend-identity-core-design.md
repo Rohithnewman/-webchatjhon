@@ -59,16 +59,78 @@ Unchanged and still binding: two-level tenancy (D2), BYOK (D3), FastAPI-native W
 - **Phase 1c:** React dashboard — auth pages, protected shell, workspace switcher, team and settings screens.
 - Later phases unchanged: provider credentials (3), API keys (5), email delivery, social login.
 
-## 4. Technology
+## 4. Technology and code organization
+
+### 4.1 Stack
 
 Python 3.12+. FastAPI with uvicorn. SQLAlchemy 2.0 async with asyncpg. Alembic. Pydantic v2 with pydantic-settings. **PyJWT** for tokens. **`bcrypt` used directly**, without passlib — this honours the architecture's mandated bcrypt algorithm while removing an unmaintained dependency and its known crash. pytest with pytest-asyncio, httpx, and `testcontainers[postgres]`.
 
+Plus **`import-linter`**, which enforces the slice boundaries in §4.4 as a CI check rather than a convention.
+
+### 4.2 Version pinning
+
 **Version pins are resolved and recorded at implementation time** from the actual installed environment. Do not carry forward the pins in the superseded plan; they date from mid-2024 and include a `pytest-asyncio` version whose `event_loop` fixture override is deprecated and removed in later releases.
 
-Two configuration details that break on first contact and must be handled explicitly:
+### 4.3 Configuration that breaks on first contact
 
 - **Supabase connection.** The pooler endpoint (port 6543, PgBouncer transaction mode) requires asyncpg to disable prepared statements — `statement_cache_size=0` and a null `prepared_statement_cache_size`. Alembic must run against the **direct** connection (port 5432), never the pooler.
 - **`CORS_ORIGINS`.** pydantic-settings parses `list[str]` from environment variables as JSON. A plain `CORS_ORIGINS=http://localhost:3000` raises at import. A `field_validator(mode="before")` splits comma-separated strings.
+
+### 4.4 Backend layout — vertical slices
+
+Per the amended architecture §3.2, code is organized by feature slice rather than by technical role.
+
+```
+backend/
+  app/
+    main.py                  # app factory: middleware, exception handlers, slice router registration
+    core/                    # infrastructure only — imports no slice
+      config.py              # Settings (+ CORS validator)
+      database.py            # Base, engine, async_session_factory, get_session
+      security.py            # bcrypt, PyJWT encode/decode, sha256 — pure, domain-free
+      errors.py              # AppError + exception handlers
+      envelope.py            # success() / error()
+      rate_limit.py          # limiter interface + in-process implementation
+      registry.py            # imports every slice's models.py so Base.metadata is complete
+    shared/                  # shared kernel — deliberately tiny
+      mixins.py              # TimestampMixin, uuid_pk
+      context.py             # WorkspaceContext dataclass
+      permissions.py         # permission string constants
+    slices/
+      tenancy/               # Organization, Workspace, Membership, Role, role seeding
+      identity/              # User, RefreshToken; register/login/refresh/logout/switch_workspace
+      authz/                 # get_workspace_context, require_permission
+      audit/                 # AuditLog, record()
+      health/                # liveness + readiness
+  alembic/
+  tests/                     # only cross-slice suites: isolation, RLS, migrations
+    conftest.py              # testcontainers Postgres, Alembic-applied schema, client fixtures
+```
+
+Each slice contains `models.py`, `schemas.py`, `repository.py`, `use_cases/` (one module per operation), `router.py`, `api.py`, and `tests/`. Slice-local tests live **with the slice**; only genuinely cross-cutting suites live in the top-level `tests/`.
+
+`api.py` is the slice's published interface and the only module other slices may import. Routers stay thin — parse, call a use case, wrap in the envelope. Repositories still take `workspace_id` as a mandatory keyword argument. Vertical slicing changes where code lives, not whether those boundaries exist.
+
+**Model ownership across slices works because SQLAlchemy foreign keys reference table names as strings** (`ForeignKey("users.id")`), which creates no Python import edge. `core/registry.py` imports every slice's `models.py` so Alembic autogeneration sees complete metadata; nothing else imports models across slice boundaries.
+
+### 4.5 Slice dependency graph
+
+Dependencies form a DAG. Higher slices may import lower ones; never the reverse.
+
+```
+health   (core only)
+  authz          → identity.api, tenancy.api
+    identity     → tenancy.api, audit.api
+      tenancy    → core, shared
+      audit      → core, shared
+```
+
+`identity` owns authentication — who you are. `authz` owns authorization — what you may do in this workspace. They are split deliberately: the defect that motivated this rewrite lived precisely at that seam, and giving authorization its own slice with its own tests makes it hard to leave untested again.
+
+Two `import-linter` contracts enforce this, and CI fails on violation:
+
+1. A **layers** contract fixing the order above.
+2. A **forbidden** contract barring every slice from importing any other slice's `models`, `repository`, or `use_cases` — `api` only.
 
 ## 5. Data model
 
@@ -213,8 +275,22 @@ Plus unit coverage for password hashing, JWT encode/decode, envelope shaping, an
 
 ## 14. Follow-on work
 
-**Phase 1b — Management API.** Organization, workspace, and member CRUD; invite records; role changes; the audit and RBAC machinery from this phase applied to each route.
+**Phase 1b — Management API.** Organization, workspace, and member CRUD; invite records; role changes. Adds `workspaces` and `members` slices consuming `authz` and `tenancy.api`; the audit and RBAC machinery from this phase applies unchanged to each new route.
 
-**Phase 1c — React Dashboard.** Vite + React Router v7 SPA; login and register pages; in-memory access token with refresh-on-401 in the API client; protected route guard; dashboard shell with workspace switcher; team and settings screens.
+**Phase 1c — React Dashboard.** Vite + React Router v7 SPA using **Feature-Sliced Design**, the frontend analogue of the backend's vertical slices. Layers import strictly downward:
+
+```
+frontend/src/
+  app/        # providers, router, global styles — composition root
+  pages/      # login, register, dashboard, team, settings
+  widgets/    # dashboard-shell, workspace-switcher
+  features/   # login-form, register-form, switch-workspace, invite-member, change-role
+  entities/   # user, organization, workspace, membership — types, API bindings, display components
+  shared/     # api client (token handling + refresh-on-401), ui kit, lib, config
+```
+
+Slice names mirror the backend deliberately: backend `identity` maps to `entities/user` plus the `login-form` / `register-form` features; backend `tenancy` maps to `entities/workspace`, `entities/organization`, `entities/membership` plus `switch-workspace`. A change to workspace switching then has exactly one obvious home on each side of the wire.
+
+The downward-import rule is enforced by ESLint boundary rules in CI, matching the role `import-linter` plays on the backend. Also carried over: in-memory access token, refresh-on-401 inside the shared API client, and a router guard for protection.
 
 Both follow the same spec → plan → build cycle as this phase.

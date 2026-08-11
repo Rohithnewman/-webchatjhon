@@ -88,35 +88,43 @@ bcrypt hashing; minimum policy enforced by Pydantic/Zod (length ≥ 8, etc.). No
 
 ## 8. Backend structure
 
+> **Amended 2026-08-11: vertical slice architecture.** The horizontal layout below is superseded — grouping by technical role smears every feature across five packages. See architecture §3.2 and `2026-08-11-phase1a-backend-identity-core-design.md` §4.4.
+
 ```
 backend/app/
-  main.py                 # app + router mount + exception handlers + CORS
-  core/{config,security,database}.py
-  models/                 # SQLAlchemy: organization, workspace, user, role, membership, refresh_token, audit_log
-  schemas/                # Pydantic v2 request/response + envelope models
-  api/v1/{auth,organizations,workspaces,members}.py
-  services/               # auth_service, org_service, workspace_service, member_service, audit_service
-  repositories/           # one per aggregate, all workspace_id-scoped
-  dependencies.py         # get_current_user, get_workspace_context, require_permission
-alembic/                  # migrations
+  main.py           # app factory + slice router registration + exception handlers + CORS
+  core/             # config, database, security, errors, envelope, rate_limit, registry
+  shared/           # shared kernel: mixins, WorkspaceContext, permission constants
+  slices/
+    tenancy/        # Organization, Workspace, Membership, Role
+    identity/       # User, RefreshToken, auth use cases
+    authz/          # workspace context + permission guard
+    audit/          # AuditLog + record()
+    health/
+    workspaces/     # Phase 1b
+    members/        # Phase 1b
+alembic/
 ```
+
+Each slice holds its own `models.py`, `schemas.py`, `repository.py`, `use_cases/`, `router.py`, `api.py`, and `tests/`. Slices import only `core`, `shared`, and other slices' `api.py`, enforced by `import-linter` in CI.
+
+~~Superseded horizontal layout: `models/`, `schemas/`, `api/v1/`, `services/`, `repositories/`, `dependencies.py`.~~
 
 ## 9. Frontend structure (Phase 1c)
 
-> **Amended 2026-08-11: React SPA, not Next.js.** Vite + React 19 + TypeScript, React Router v7 in data mode, built to static assets. No server components, route groups, or middleware.
+> **Amended 2026-08-11: React SPA with Feature-Sliced Design, not Next.js.** Vite + React 19 + TypeScript, React Router v7 in data mode, built to static assets. No server components, route groups, or middleware. FSD is the frontend analogue of the backend's vertical slices (architecture §3.2); layers import strictly downward, enforced by ESLint boundary rules in CI.
 
 ```
 frontend/src/
-  routes/
-    login.tsx, register.tsx, forgot-password.tsx
-    protected.tsx                  # route guard: redirects to /login when unauthenticated
-    dashboard/layout.tsx           # shell: sidebar + navbar + workspace switcher
-    dashboard/index.tsx            # landing (placeholder widgets)
-    dashboard/team.tsx             # members list + invite + role change
-    dashboard/settings.tsx         # org/workspace basics
-  lib/{api.ts, auth.ts, store.ts}  # API client, token handling, Zustand
-  router.tsx                       # route tree
+  app/        # providers, router, global styles — composition root
+  pages/      # login, register, forgot-password, dashboard, team, settings
+  widgets/    # dashboard-shell (sidebar + navbar), workspace-switcher
+  features/   # login-form, register-form, switch-workspace, invite-member, change-role
+  entities/   # user, organization, workspace, membership — types, API bindings, display components
+  shared/     # api client (token handling + refresh-on-401), ui kit, lib, config
 ```
+
+Slice names mirror backend slices: `identity` → `entities/user` + login/register features; `tenancy` → `entities/workspace|organization|membership` + `switch-workspace`.
 
 - Access token held in memory only (never `localStorage`), with silent refresh on 401 inside the API client.
 - **Refresh-token storage is an open decision for Phase 1c**, between (a) returning it in the JSON body and persisting it in `localStorage` — simple, but readable by any XSS — and (b) having the backend set it as an httpOnly `Secure` `SameSite` cookie, which an SPA cannot do for itself and which changes the Phase 1a `/auth/*` response shape. Phase 1a returns it in the body; if (b) wins, that is a deliberate Phase 1c amendment to the auth endpoints, not a silent change.
