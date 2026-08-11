@@ -1,9 +1,22 @@
 # Phase 1 — Foundation — Design
 
 - **Date:** 2026-07-25
-- **Status:** Approved (design); ready for implementation planning
+- **Status:** Approved (design). **Amended 2026-08-11** — see the amendment note below; Phase 1 is now built as slices 1a / 1b / 1c.
 - **Parent:** `2026-07-25-webchatbots-platform-architecture.md`
+- **Children:** `2026-08-11-phase1a-backend-identity-core-design.md` (identity core — supersedes this document where they differ)
 - **Scope:** Identity, tenancy, and the shells that every later phase builds on. No chatbots, flows, RAG, or widget in this phase.
+
+---
+
+> ## Amendment — 2026-08-11
+>
+> Phase 1 is delivered in three slices, each with its own spec → plan → build cycle: **1a** backend identity core, **1b** management API, **1c** React dashboard. Three decisions in this document are superseded:
+>
+> 1. **§5.1 token claims** — the access JWT no longer embeds `role` or `permissions`; both resolve from the database per request. This closes a 15-minute stale-privilege window and makes access revocable.
+> 2. **§9 frontend** — **React SPA (Vite + React Router v7), not Next.js.**
+> 3. **§10 testing** — tests run against real Postgres via `testcontainers`, not SQLite; the RLS smoke test in this section is unreachable on SQLite.
+>
+> Sections marked below carry inline notes. Everything else stands.
 
 ---
 
@@ -41,7 +54,10 @@ All tables: UUID PK, `workspace_id` where tenant-scoped, `created_at`, `updated_
 ## 5. Authentication
 
 ### 5.1 Token model
-- **Access JWT** — 15 min. Claims: `sub` (user_id), `email`, `workspace_id` (active workspace), `role`, `permissions`, `exp`, `iat`, `jti`.
+
+> **Amended 2026-08-11:** claims are identity-only — `sub`, `email`, `workspace_id`, `type`, `exp`, `iat`, `jti`. `role` and `permissions` are resolved per request from the database.
+
+- **Access JWT** — 15 min. ~~Claims: `sub` (user_id), `email`, `workspace_id` (active workspace), `role`, `permissions`, `exp`, `iat`, `jti`.~~
 - **Refresh JWT** — 7 days. Stored server-side as SHA-256 hash in `refresh_tokens`; rotated on use; revocable.
 - Signed HS256 with `JWT_SECRET`.
 
@@ -85,23 +101,32 @@ backend/app/
 alembic/                  # migrations
 ```
 
-## 9. Frontend structure (Phase 1)
+## 9. Frontend structure (Phase 1c)
+
+> **Amended 2026-08-11: React SPA, not Next.js.** Vite + React 19 + TypeScript, React Router v7 in data mode, built to static assets. No server components, route groups, or middleware.
 
 ```
-frontend/app/
-  (auth)/{login,register,forgot-password}/page.tsx
-  (dashboard)/layout.tsx  # protected shell: sidebar + navbar + workspace switcher
-  (dashboard)/dashboard/page.tsx   # landing (placeholder widgets)
-  (dashboard)/team/page.tsx        # members list + invite + role change
-  (dashboard)/settings/page.tsx    # org/workspace basics
-lib/{api.ts, auth.ts, store.ts}    # API client, token handling, Zustand
+frontend/src/
+  routes/
+    login.tsx, register.tsx, forgot-password.tsx
+    protected.tsx                  # route guard: redirects to /login when unauthenticated
+    dashboard/layout.tsx           # shell: sidebar + navbar + workspace switcher
+    dashboard/index.tsx            # landing (placeholder widgets)
+    dashboard/team.tsx             # members list + invite + role change
+    dashboard/settings.tsx         # org/workspace basics
+  lib/{api.ts, auth.ts, store.ts}  # API client, token handling, Zustand
+  router.tsx                       # route tree
 ```
 
-- Server components by default; client components for forms/interactive shell.
-- React Hook Form + Zod on all forms; TanStack Query for server state; Zustand for UI/auth state.
+- Access token held in memory only (never `localStorage`), with silent refresh on 401 inside the API client.
+- **Refresh-token storage is an open decision for Phase 1c**, between (a) returning it in the JSON body and persisting it in `localStorage` — simple, but readable by any XSS — and (b) having the backend set it as an httpOnly `Secure` `SameSite` cookie, which an SPA cannot do for itself and which changes the Phase 1a `/auth/*` response shape. Phase 1a returns it in the body; if (b) wins, that is a deliberate Phase 1c amendment to the auth endpoints, not a silent change.
+- Protection is a router guard, not a server-rendered layout check.
+- React Hook Form + Zod on all forms; TanStack Query for server state; Zustand for UI/auth state; Tailwind + shadcn/ui.
 - Token storage + silent refresh on 401 via the API client; workspace switcher calls `/auth/switch-workspace`.
 
 ## 10. Testing strategy
+
+> **Amended 2026-08-11:** the test database is **real Postgres via `testcontainers`**, with the schema applied by running Alembic migrations. SQLite cannot express `citext`, `text[]`, `jsonb`, partial unique indexes, or RLS — which made the RLS smoke test below unreachable.
 
 - **Backend:** pytest + async client. Unit tests for services (auth, RBAC, isolation). Integration tests hitting real endpoints against a test DB. **Isolation tests are mandatory:** assert workspace A can never read/mutate workspace B data via any endpoint. Token lifecycle tests (expiry, refresh rotation, revocation/logout). RLS smoke test.
 - **Frontend:** component tests for auth forms (validation, error states); a happy-path integration for register → login → dashboard.

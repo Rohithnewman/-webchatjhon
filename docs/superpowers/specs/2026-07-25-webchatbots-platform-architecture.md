@@ -21,6 +21,10 @@ These decisions are load-bearing for the entire platform. Changing them later is
 | D3 | **BYOK — Bring Your Own Keys.** Each workspace stores its own encrypted LLM/embedding provider credentials. | The platform never carries token-cost risk in the early stage; revenue is platform/seat based. | New `provider_credentials` table (encrypted at rest). Provider + model selected per chatbot/flow. No central usage-metering required for v1. |
 | D4 | **Single real-time transport: FastAPI native WebSockets.** Handles both LLM token streaming and live-agent chat. Supabase Realtime is dropped from the critical path. | One connection model, one auth path, one scaling story. | Supabase Realtime noted as a **future option** for DB-change subscriptions only. |
 
+> **Amendment 2026-08-11 (D1).** The access JWT carries **identity only** — `sub`, `email`, `workspace_id`, `type`, `exp`, `iat`, `jti`. `role` and `permissions` are **no longer embedded**; they resolve from the database on every request via a single indexed join. Rationale: embedded claims left a 15-minute window in which deactivation, workspace removal, and role demotion had no effect, and made access tokens unrevocable. Everything else in D1 stands. See `2026-08-11-phase1a-backend-identity-core-design.md` §2.
+
+> **Amendment 2026-08-11 (frontend).** The frontend is a **React SPA** — Vite + React 19 + TypeScript, React Router v7 (data mode), TanStack Query, Zustand, React Hook Form + Zod, Tailwind + shadcn/ui — built to static assets. **Next.js is not used.** An authenticated dashboard gains nothing from SSR or SEO, and dropping it removes server components, route groups, middleware, and Vercel-SSR coupling. All calls go directly to FastAPI over the whitelisted CORS origins.
+
 ## 3. Cross-cutting architecture (defined once, used by every phase)
 
 ### 3.1 Tenant isolation
@@ -74,7 +78,10 @@ Changes vs. original schema: `tenants` removed; top level is `organizations (id,
 
 Each phase is its own spec + plan + build cycle.
 
-- **Phase 1 — Foundation.** Supabase project + schema + RLS; FastAPI structure + async DB; JWT auth (register/login/refresh/logout); org/workspace/user management; RBAC middleware; Next.js scaffold + auth pages + dashboard shell. *(Detailed spec: `2026-07-25-phase1-foundation-design.md`.)*
+- **Phase 1 — Foundation.** Split into three build slices, each with its own spec → plan → build cycle. *(Parent spec: `2026-07-25-phase1-foundation-design.md`.)*
+  - **1a — Backend Identity Core.** Supabase project + schema + RLS; FastAPI structure + async DB; JWT auth (register/login/refresh/logout/switch-workspace); request-time RBAC; audit logging; Postgres-backed isolation/RLS test suites. *(Detailed spec: `2026-08-11-phase1a-backend-identity-core-design.md`.)*
+  - **1b — Management API.** Organization, workspace, and member CRUD; invite records; role changes.
+  - **1c — React Dashboard.** Vite + React Router SPA; auth pages; protected shell + workspace switcher; team and settings screens.
 - **Phase 2 — Core Builder.** Chatbot CRUD; flow save/load/version API; React Flow canvas with all 13 node types; node config panel; flow JSON import/export.
 - **Phase 3 — AI & Knowledge Base.** Document upload + Supabase Storage; Celery ingestion pipeline (extract → chunk 512/50 → embed → pgvector); RAG query service (LangChain + LlamaIndex, top-K=5 cosine); BYOK `provider_credentials` UI; KB management UI.
 - **Phase 4 — Widget & Conversations.** Embeddable `widget.js` (one script tag); public widget conversation API (no auth, signed session); WebSocket streaming; conversation history + UI; live-agent handoff + console.
@@ -82,7 +89,9 @@ Each phase is its own spec + plan + build cycle.
 
 ## 6. Deployment
 
-Frontend → Vercel · Backend → Render · Celery workers → Render (separate service) · DB/Storage → Supabase · Cache/broker → Upstash Redis.
+Frontend → static build (Vercel or any CDN; no SSR runtime) · Backend → Render · Celery workers → Render (separate service) · DB/Storage → Supabase · Cache/broker → Upstash Redis.
+
+**Supabase connection note.** The pooler endpoint (port 6543, PgBouncer transaction mode) requires asyncpg to disable prepared statements (`statement_cache_size=0`, null `prepared_statement_cache_size`). Alembic must run against the **direct** connection on port 5432, never the pooler.
 
 ## 7. Explicitly out of scope for v1
 

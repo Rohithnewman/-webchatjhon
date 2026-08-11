@@ -1,5 +1,13 @@
 # Phase 1 — Backend Foundation + Auth Implementation Plan
 
+> # ⛔ SUPERSEDED — DO NOT IMPLEMENT
+>
+> **Superseded 2026-08-11** by `docs/superpowers/specs/2026-08-11-phase1a-backend-identity-core-design.md`. A replacement plan is being written from that spec.
+>
+> Review found defects that would ship a broken authorization layer. The most serious: `require_permission` (Task 9) declares `ctx: WorkspaceContext = None` with no `Depends(...)`, so FastAPI cannot inject it — the guard's test passed only by bypassing FastAPI. Also: `python-jose` carries known CVEs; `passlib==1.7.4` crashes on `bcrypt>=4.1`; Alembic autogenerates against the SQLite default URL; soft delete collides with total unique constraints; the duplicate-email check is a read-then-write race; login leaks account existence by timing; rate limiting and audit logging are absent. Full list in the new spec, §1.
+>
+> Retained for reference only.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stand up the FastAPI backend foundation with async SQLAlchemy, migrations, and a complete custom-JWT auth system (register → login → refresh → logout → switch-workspace) enforcing Organization→Workspace isolation and RBAC.
