@@ -151,8 +151,10 @@ Uniqueness is partial: `UNIQUE (user_id, workspace_id) WHERE deleted_at IS NULL`
 **refresh_tokens** — `id`, `user_id` (FK, indexed), `workspace_id` (FK, indexed), `family_id` (indexed), `token_hash` (SHA-256, unique), `expires_at`, `revoked_at`, `created_at`.
 `family_id` groups a rotation chain so that reuse of a superseded token can revoke every descendant.
 
-**audit_logs** — `id`, `workspace_id` (indexed), `actor_id` (**nullable** FK — system-originated actions have no user actor), `action`, `target_type`, `target_id`, `metadata` (`jsonb`), `created_at`.
+**audit_logs** — `id`, `workspace_id` (**nullable**, indexed), `actor_id` (**nullable** FK), `action`, `target_type`, `target_id`, `metadata` (`jsonb`), `created_at`.
 Append-only, and therefore carries **no** `updated_at` and **no** `deleted_at`. The superseded plan applied the standard timestamp mixin here, which contradicted its own "append-only" description.
+
+Both nullable columns are deliberate. `actor_id` is null for system-originated actions. `workspace_id` is null for **platform-level** events that precede or fall outside any workspace — most importantly a failed login for an unrecognized email, where there is no tenant to attribute the row to. This does not weaken the architecture's "every tenant table carries `workspace_id`" rule, which governs tenant *data*; and it composes correctly with RLS, since `workspace_id = current_setting(...)` excludes NULL rows, keeping platform events invisible to tenant-scoped reads.
 
 **Seed data:** four system roles — `owner` (`*`), `admin` (`workspace:manage`, `members:manage`, `features:use`, `features:read`), `member` (`features:use`, `features:read`), `viewer` (`features:read`).
 
@@ -194,7 +196,9 @@ Three layers, each a FastAPI dependency:
 
 **`get_current_principal`** — extracts the bearer token, decodes it, asserts `type == "access"`, and returns `sub` / `email` / `workspace_id`. Any failure is `UNAUTHENTICATED` (401).
 
-**`get_workspace_context`** — depends on the principal and runs **one indexed join** across `memberships → roles → users` for that `(user_id, workspace_id)` pair. Returns 401 if the user is inactive or soft-deleted, 403 if no live membership exists, and otherwise a `WorkspaceContext(user_id, email, workspace_id, role, permissions)` carrying **current** permissions read from the database.
+**`get_workspace_context`** — depends on the principal and performs **two indexed lookups**: `identity.api` confirms the user is active and not soft-deleted, and `tenancy.api` joins `memberships → roles` for that `(user_id, workspace_id)` pair. Returns 401 if the user is inactive or soft-deleted, 403 if no live membership exists, and otherwise a `WorkspaceContext(user_id, email, workspace_id, role, permissions)` carrying **current** permissions read from the database.
+
+Two lookups rather than one join is a deliberate cost of the slice boundary: a single query spanning `users` and `memberships` would require `authz` to import another slice's models, which §4.4 forbids. Both lookups hit unique indexes and are sub-millisecond. If profiling ever shows this matters, the fix is the Redis cache already contemplated in §10 — not a boundary violation.
 
 **`require_permission(perm)`** — returns a dependency whose signature is `ctx: WorkspaceContext = Depends(get_workspace_context)`. This injection is the correction to the central defect: the superseded version defaulted `ctx` to `None` with no `Depends`, so FastAPI would have tried to bind `WorkspaceContext` from the request. Grants when `perm` or `*` is present; otherwise `FORBIDDEN` (403).
 
