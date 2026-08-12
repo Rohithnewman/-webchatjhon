@@ -1,0 +1,18 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Session-scoped async fixtures (the Postgres container engine) need a
+# session-scoped event loop. Without this, pytest-asyncio 0.24+ raises
+# "ScopeMismatch" the moment an async fixture outlives a single test.
+asyncio_default_fixture_loop_scope = "session"
+pythonpath = ["."]
+testpaths = ["tests", "app"]
+python_files = ["test_*.py"]
+
+[tool.importlinter]
+root_packages = ["app"]
+
+[[tool.importlinter.contracts]]
+name = "core and shared never import slices"
+type = "forbidden"
+source_modules = ["app.core", "app.shared"]
+forbidden_modules = ["app.slices"]
