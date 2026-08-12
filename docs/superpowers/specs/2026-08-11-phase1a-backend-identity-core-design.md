@@ -249,6 +249,8 @@ The superseded plan's health check returned `ok` unconditionally, so it would ha
 
 **Error codes:** `VALIDATION_ERROR` (400), `EMAIL_TAKEN` (400), `INVALID_CREDENTIALS` (401), `UNAUTHENTICATED` (401), `INVALID_REFRESH` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `ACCOUNT_LOCKED` (423), `RATE_LIMITED` (429), `INTERNAL_ERROR` (500). A catch-all handler maps unhandled exceptions to `INTERNAL_ERROR` without leaking tracebacks.
 
+The readiness probe additionally returns `NOT_READY` (503) when the database is unreachable; it is the only endpoint that can.
+
 `423 Locked` **extends** the status list in architecture §3.3, which enumerated 200/201/400/401/403/404/429/500. It is added deliberately: lockout is a distinct condition from bad credentials (401) and from throttling (429), and collapsing it into either would leave the client unable to tell the user why they are blocked. All other codes are unchanged.
 
 ## 12. Testing

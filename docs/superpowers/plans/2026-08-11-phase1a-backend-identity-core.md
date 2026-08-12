@@ -19,13 +19,13 @@
 - API base path `/api/v1/`. Auth routes under `/api/v1/auth` are unauthenticated.
 - Success envelope: `{"success": true, "data": <obj>, "message": <str|null>, "pagination": <obj|null>}`.
 - Error envelope: `{"success": false, "error": <CODE>, "message": <str>, "details": <obj|null>}`.
-- HTTP codes: 200 ok, 201 created, 400 validation, 401 unauthenticated, 403 forbidden, 404 not found, 423 locked, 429 rate-limited, 500 server error.
+- HTTP codes: 200 ok, 201 created, 400 validation, 401 unauthenticated, 403 forbidden, 404 not found, 423 locked, 429 rate-limited, 500 server error, 503 not ready (readiness probe only).
 - Access JWT 15 minutes, carrying **identity only**: `sub`, `email`, `workspace_id`, `type`, `iat`, `exp`, `jti`. **No `role`, no `permissions`.** Refresh JWT 7 days, carrying `sub`, `workspace_id`, `family_id`, `type`, `iat`, `exp`, `jti`. HS256 over `JWT_SECRET`.
 - Every token decode asserts the `type` claim. A refresh token must never be accepted as an access token.
 - Passwords hashed with bcrypt, validated at min 8 characters and **max 72 bytes UTF-8** (bcrypt truncates beyond 72 and would silently weaken longer passwords). Never stored or logged in plaintext. Refresh tokens persisted only as SHA-256 hashes.
 - UUID primary keys throughout. All timestamps `timestamptz`. Soft-deletable tables carry `created_at`, `updated_at`, `deleted_at`; `audit_logs` is append-only and carries only `created_at`.
 - **Uniqueness on soft-deletable tables is always a partial index** `WHERE deleted_at IS NULL`. A total unique index would permanently burn a soft-deleted user's email or block re-inviting a removed member.
-- Every tenant-scoped repository function takes `workspace_id` as a mandatory keyword argument.
+- Every tenant-scoped repository function takes `workspace_id` as a mandatory keyword argument. The one sanctioned exception is a lookup keyed by a globally unique secret that *resolves* the workspace — `select_refresh_token(token_hash=...)` — since the caller cannot know the workspace before the lookup. Such functions return the `workspace_id`, and callers must scope every subsequent decision by it.
 - All configuration via environment variables. No hardcoded secrets.
 - Type hints on every function. `async`/`await` for all DB calls.
 - Tests run against the **local PostgreSQL 18 server**, in a throwaway database created and dropped per session, with the schema applied by running Alembic migrations. There is no SQLite anywhere and no Docker.
@@ -110,7 +110,7 @@ $env:TEST_DATABASE_URL = "postgresql://postgres:YOURPASSWORD@localhost:5432/post
 - Create: `backend/app/slices/health/router.py`
 - Create: `backend/app/main.py`
 - Test: `backend/app/slices/health/tests/__init__.py`, `backend/app/slices/health/tests/test_health.py`
-- Test: `backend/tests/__init__.py`, `backend/tests/test_errors.py`
+- Test: `backend/tests/__init__.py`, `backend/tests/test_errors.py`, `backend/tests/test_config.py`
 
 **Interfaces:**
 - Consumes: nothing (first task).
@@ -316,6 +316,13 @@ async def test_validation_error_renders_400_envelope():
     assert body["success"] is False
     assert body["error"] == "VALIDATION_ERROR"
     assert "errors" in body["details"]
+```
+
+```python
+# backend/tests/test_config.py
+import pytest
+
+from app.core.config import Settings
 
 
 @pytest.mark.parametrize(
@@ -327,9 +334,18 @@ async def test_validation_error_renders_400_envelope():
     ],
 )
 def test_cors_origins_accepts_comma_separated_and_json(raw, expected):
-    from app.core.config import Settings
-
+    """pydantic-settings parses list[str] env vars as JSON; a bare
+    comma-separated value would otherwise raise at import."""
     assert Settings(CORS_ORIGINS=raw).CORS_ORIGINS == expected
+
+
+def test_production_rejects_the_development_jwt_secret():
+    with pytest.raises(ValueError):
+        Settings(ENVIRONMENT="production", JWT_SECRET="dev-only-change-me")
+
+
+def test_production_accepts_a_real_jwt_secret():
+    assert Settings(ENVIRONMENT="production", JWT_SECRET="a-real-secret").JWT_SECRET
 ```
 
 - [ ] **Step 7: Run tests to verify they fail**
@@ -531,7 +547,7 @@ app = create_app()
 - [ ] **Step 13: Run tests to verify they pass**
 
 Run: `cd backend && pytest -v`
-Expected: PASS — 5 tests (1 health, 2 error envelope, 3 parametrized CORS cases counted individually gives 6 total; all green).
+Expected: PASS — 8 tests: 1 health, 2 error-envelope, 3 parametrized CORS cases, 2 production-secret guard.
 
 - [ ] **Step 14: Run the import-linter contract**
 
@@ -3914,19 +3930,20 @@ async def test_refresh_token_is_rejected_as_a_bearer_token(session):
     assert resp.status_code == 401
 
 
-async def test_token_for_a_workspace_the_user_never_joined_is_403(session):
+async def test_token_for_a_nonexistent_user_is_401(session):
+    """A validly-signed token whose subject does not exist. The signature is
+    fine; only the database can tell."""
     await register(
         session, email="a@b.com", password="Secret123", full_name="A", org_name="Acme"
     )
-    stranger_token = create_access_token(
+    ghost_token = create_access_token(
         sub=str(uuid.uuid4()), email="ghost@x.com", workspace_id=str(uuid.uuid4())
     )
     async with _client(session) as ac:
         resp = await ac.get(
             "/api/v1/_probe/whoami",
-            headers={"Authorization": f"Bearer {stranger_token}"},
+            headers={"Authorization": f"Bearer {ghost_token}"},
         )
-    # No such user at all → unauthenticated rather than forbidden.
     assert resp.status_code == 401
 ```
 
@@ -4637,7 +4654,12 @@ async def test_a_forged_token_for_a_foreign_workspace_is_rejected(session):
     assert resp.status_code == 403
 
 
-async def test_a_refresh_token_cannot_be_redeemed_by_another_workspace(session):
+async def test_rotating_a_refresh_token_never_crosses_into_another_workspace(session):
+    """Rotation must stay pinned to the workspace the token was minted for,
+    no matter who else exists."""
+    from app.core.security import decode_token
+    from app.slices.identity.use_cases.refresh import refresh
+
     alice = await register(
         session, email="alice@a.com", password="Secret123",
         full_name="Alice", org_name="Acme",
@@ -4646,15 +4668,15 @@ async def test_a_refresh_token_cannot_be_redeemed_by_another_workspace(session):
         session, email="bob@b.com", password="Secret123",
         full_name="Bob", org_name="Beta",
     )
-
-    # Bob's stored refresh token is scoped to Bob's workspace; Alice holds no
-    # row that would let her rotate it.
-    rows = await session.execute(
-        text("SELECT workspace_id FROM refresh_tokens WHERE user_id = :u"),
-        {"u": bob.user_id},
-    )
-    assert all(row[0] == bob.workspace_id for row in rows)
     assert alice.workspace_id != bob.workspace_id
+
+    rotated = await refresh(session, refresh_token=bob.refresh_token)
+
+    assert rotated.user_id == bob.user_id
+    assert rotated.workspace_id == bob.workspace_id
+    payload = decode_token(rotated.access_token, expected_type="access")
+    assert payload["workspace_id"] == str(bob.workspace_id)
+    assert payload["sub"] == str(bob.user_id)
 
 
 async def test_audit_rows_never_cross_workspaces(session):
