@@ -74,7 +74,7 @@ Plus **`import-linter`**, which enforces the slice boundaries in §4.4 as a CI c
 ### 4.3 Configuration that breaks on first contact
 
 - **Supabase connection.** The pooler endpoint (port 6543, PgBouncer transaction mode) requires asyncpg to disable prepared statements — `statement_cache_size=0` and a null `prepared_statement_cache_size`. Alembic must run against the **direct** connection (port 5432), never the pooler.
-- **`CORS_ORIGINS`.** pydantic-settings parses `list[str]` from environment variables as JSON. A plain `CORS_ORIGINS=http://localhost:3000` raises at import. A `field_validator(mode="before")` splits comma-separated strings.
+- **`CORS_ORIGINS`.** pydantic-settings JSON-decodes `list[str]` environment variables **inside `EnvSettingsSource`, before validation runs**, so a plain `CORS_ORIGINS=http://localhost:3000` raises `SettingsError` at import. A `field_validator(mode="before")` alone does **not** fix this — it never executes. The field must be annotated `Annotated[list[str], NoDecode]` to suppress the pre-decode, and only then does the validator get to split comma-separated strings. Any test for this must set the value through the environment; a constructor kwarg bypasses `EnvSettingsSource` and passes even when real startup is broken.
 
 ### 4.4 Backend layout — vertical slices
 

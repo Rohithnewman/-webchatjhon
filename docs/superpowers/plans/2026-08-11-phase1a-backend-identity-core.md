@@ -333,10 +333,17 @@ from app.core.config import Settings
         ('["http://a.com"]', ["http://a.com"]),
     ],
 )
-def test_cors_origins_accepts_comma_separated_and_json(raw, expected):
-    """pydantic-settings parses list[str] env vars as JSON; a bare
-    comma-separated value would otherwise raise at import."""
-    assert Settings(CORS_ORIGINS=raw).CORS_ORIGINS == expected
+def test_cors_origins_parses_values_sourced_from_the_environment(
+    monkeypatch, raw, expected
+):
+    """MUST go through the environment, not a constructor kwarg.
+
+    A kwarg bypasses EnvSettingsSource entirely, which is the only place the
+    JSON pre-decode happens — so a kwarg-based test passes even when the real
+    startup path raises SettingsError.
+    """
+    monkeypatch.setenv("CORS_ORIGINS", raw)
+    assert Settings(_env_file=None).CORS_ORIGINS == expected
 
 
 def test_production_rejects_the_development_jwt_secret():
@@ -357,9 +364,10 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'app.main'`.
 
 ```python
 import json
+from typing import Annotated
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _DEV_SECRET = "dev-only-change-me"
 
@@ -376,7 +384,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_MINUTES: int = 15
     REFRESH_TOKEN_DAYS: int = 7
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    # NoDecode is load-bearing. Without it, pydantic-settings runs json.loads()
+    # on the raw env value inside EnvSettingsSource and raises SettingsError
+    # BEFORE any field validator runs — so the validator below would be dead
+    # code and `CORS_ORIGINS=http://a.com,http://b.com` would crash at import.
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 
     LOGIN_MAX_FAILURES: int = 5
     LOCKOUT_MINUTES: int = 15
@@ -385,8 +397,7 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def _parse_origins(cls, value: object) -> object:
-        """pydantic-settings parses list[str] env vars as JSON, so a plain
-        `CORS_ORIGINS=http://localhost:5173` would raise at import. Accept both."""
+        """Accept either a comma-separated string or a JSON array."""
         if not isinstance(value, str):
             return value
         text = value.strip()
