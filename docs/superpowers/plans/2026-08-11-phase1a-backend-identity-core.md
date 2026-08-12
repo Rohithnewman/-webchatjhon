@@ -64,8 +64,12 @@ backend/
       authz/                  # workspace context + permission guard
       audit/                  # AuditLog + record()
       health/                 # liveness + readiness
+  conftest.py                 # ROOTDIR-level: throwaway DB, migrations, session
+                              # and client fixtures. It MUST live here, not in
+                              # tests/ — a conftest only serves its own directory
+                              # and below, and the slice tests under
+                              # app/slices/*/tests/ need these fixtures too.
   tests/
-    conftest.py               # container, migrations, session and client fixtures
     test_isolation.py         # cross-workspace safety net
     test_rls.py               # RLS under the restricted role
     test_boundaries.py        # import-linter contracts execute in CI
@@ -580,7 +584,7 @@ git commit -m "feat(backend): scaffold vertical-slice app with settings, envelop
 **Files:**
 - Create: `backend/app/core/database.py`
 - Modify: `backend/app/slices/health/router.py` (add the readiness route)
-- Create: `backend/tests/conftest.py`
+- Create: `backend/conftest.py`
 - Test: `backend/tests/test_database.py`
 - Test: `backend/app/slices/health/tests/test_health.py` (add readiness test)
 
@@ -592,7 +596,7 @@ git commit -m "feat(backend): scaffold vertical-slice app with settings, envelop
   - `app.core.database.async_session_factory` — `async_sessionmaker[AsyncSession]`.
   - `app.core.database.get_session() -> AsyncIterator[AsyncSession]` — FastAPI dependency; rolls back on exception.
   - `app.core.database.build_engine_kwargs(url: str) -> dict` — pooler-safe engine options.
-  - Fixtures in `tests/conftest.py`: `postgres_url` (session-scoped `str`), `db_engine` (session-scoped `AsyncEngine`).
+  - Fixtures in `conftest.py`: `postgres_url` (session-scoped `str`), `db_engine` (session-scoped `AsyncEngine`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -764,7 +768,9 @@ async def readiness(session: AsyncSession = Depends(get_session)) -> dict:
     return success({"status": "ok", "database": "ok"})
 ```
 
-- [ ] **Step 5: Write `tests/conftest.py` against the local PostgreSQL server**
+- [ ] **Step 5: Write `backend/conftest.py` against the local PostgreSQL server**
+
+It goes at the **backend rootdir**, not inside `tests/`. A `conftest.py` supplies fixtures only to tests collected in its own directory and below; the slice tests added from Task 6 onward live under `app/slices/*/tests/` and need `session` and `client` too.
 
 ```python
 import os
@@ -1289,7 +1295,7 @@ git commit -m "feat(backend): add identity and audit models with metadata regist
 - Create: `backend/alembic/env.py`, `backend/alembic/script.py.mako`
 - Create: `backend/alembic/versions/0001_extensions.py`
 - Create: `backend/alembic/versions/0002_initial_schema.py`
-- Modify: `backend/tests/conftest.py` (apply migrations; add the per-test `session` fixture)
+- Modify: `backend/conftest.py` (apply migrations; add the per-test `session` fixture)
 - Test: `backend/tests/test_migrations.py`
 
 **Interfaces:**
@@ -1297,7 +1303,7 @@ git commit -m "feat(backend): add identity and audit models with metadata regist
 - Produces:
   - A migration chain applying cleanly from empty to `head`.
   - Postgres role `app_restricted` (NOLOGIN, `SELECT` only) used by RLS tests.
-  - `tests/conftest.py` fixtures: `migrated_url` (session `str`), `db_engine` (session `AsyncEngine`), `session` (function-scoped `AsyncSession` inside a rolled-back transaction).
+  - `conftest.py` fixtures: `migrated_url` (session `str`), `db_engine` (session `AsyncEngine`), `session` (function-scoped `AsyncSession` inside a rolled-back transaction).
 
 - [ ] **Step 1: Initialize Alembic**
 
@@ -1402,7 +1408,7 @@ def downgrade() -> None:
     op.execute("DROP EXTENSION IF EXISTS citext")
 ```
 
-- [ ] **Step 5: Update `backend/tests/conftest.py`**
+- [ ] **Step 5: Update `backend/conftest.py`**
 
 Replace the file entirely:
 
@@ -1421,7 +1427,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.database import build_engine
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
+# This file lives at the backend rootdir, so its own directory IS backend/.
+BACKEND_ROOT = Path(__file__).resolve().parent
 
 ADMIN_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres"
@@ -1749,7 +1756,7 @@ git commit -m "feat(backend): add migrations, partial unique indexes, RLS polici
 - Create: `backend/app/slices/tenancy/repository.py`
 - Create: `backend/app/slices/tenancy/api.py`
 - Create: `backend/app/slices/tenancy/seed.py`
-- Modify: `backend/tests/conftest.py` (seed system roles once after migration)
+- Modify: `backend/conftest.py` (seed system roles once after migration)
 - Test: `backend/app/slices/tenancy/tests/test_tenancy_api.py`
 
 **Interfaces:**
@@ -2108,9 +2115,9 @@ async def get_earliest_workspace_id(
     return await repository.select_earliest_workspace_id(session, user_id=user_id)
 ```
 
-- [ ] **Step 6: Seed system roles once in `tests/conftest.py`**
+- [ ] **Step 6: Seed system roles once in `conftest.py`**
 
-Add to `backend/tests/conftest.py`, after the `db_engine` fixture:
+Add to `backend/conftest.py`, after the `db_engine` fixture:
 
 ```python
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -4144,7 +4151,7 @@ git commit -m "feat(backend): add DB-verified workspace context and working perm
 - Create: `backend/app/slices/identity/schemas.py`
 - Create: `backend/app/slices/identity/router.py`
 - Modify: `backend/app/main.py` (mount the auth router)
-- Modify: `backend/tests/conftest.py` (add the `client` fixture)
+- Modify: `backend/conftest.py` (add the `client` fixture)
 - Test: `backend/app/slices/identity/tests/test_auth_api.py`
 
 **Interfaces:**
@@ -4153,7 +4160,7 @@ git commit -m "feat(backend): add DB-verified workspace context and working perm
   - `app.core.rate_limit.InProcessRateLimiter(limit: int, window_seconds: int = 60)` with `.hit(key) -> bool` and `.reset() -> None`; module-level `limiter`; `rate_limit(bucket: str) -> Callable` dependency factory.
   - `app.slices.identity.schemas` — `RegisterIn`, `LoginIn`, `RefreshIn`, `LogoutIn`, `SwitchWorkspaceIn`.
   - `app.slices.identity.router.router` — `POST /api/v1/auth/{register,login,refresh,logout,switch-workspace}`.
-  - `tests/conftest.py` fixture `client` — an `AsyncClient` bound to the app with `get_session` overridden to the test session.
+  - `conftest.py` fixture `client` — an `AsyncClient` bound to the app with `get_session` overridden to the test session.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4286,7 +4293,7 @@ async def test_account_lockout_surfaces_as_423(client):
     assert resp.json()["error"] == "ACCOUNT_LOCKED"
 ```
 
-- [ ] **Step 2: Add the `client` fixture to `tests/conftest.py`**
+- [ ] **Step 2: Add the `client` fixture to `conftest.py`**
 
 ```python
 @pytest_asyncio.fixture

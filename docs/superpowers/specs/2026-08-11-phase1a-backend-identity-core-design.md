@@ -103,8 +103,12 @@ backend/
       audit/                 # AuditLog, record()
       health/                # liveness + readiness
   alembic/
+  conftest.py                # ROOTDIR-level: throwaway local DB, Alembic-applied
+                             # schema, session and client fixtures. Must live here,
+                             # not in tests/ — a conftest serves only its own
+                             # directory and below, and the slice tests under
+                             # app/slices/*/tests/ need these fixtures too.
   tests/                     # only cross-slice suites: isolation, RLS, migrations
-    conftest.py              # throwaway local DB, Alembic-applied schema, client fixtures
 ```
 
 Each slice contains `models.py`, `schemas.py`, `repository.py`, `use_cases/` (one module per operation), `router.py`, `api.py`, and `tests/`. Slice-local tests live **with the slice**; only genuinely cross-cutting suites live in the top-level `tests/`.
