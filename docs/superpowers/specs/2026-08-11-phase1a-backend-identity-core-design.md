@@ -33,7 +33,7 @@ These override previously approved decisions and are the load-bearing changes in
 |---|---|---|---|
 | Architecture **D1** | Access JWT claims include `role` and `permissions` | Access JWT carries identity only: `sub`, `email`, `workspace_id`, `type`, `exp`, `iat`, `jti`. Role and permissions resolve from the database on every request. | Eliminates the stale-privilege window. Deactivation, workspace removal, and role demotion take effect immediately rather than after up to 15 minutes. Also shrinks the token. |
 | Architecture §5 (Phase 1), §6 (Deployment); Parent design §9 | Next.js app router, deployed to Vercel with SSR | React SPA — Vite + React 19 + TypeScript, React Router v7 (data mode), TanStack Query, Zustand, React Hook Form + Zod, Tailwind + shadcn/ui. Built to static assets, served from any CDN. | An authenticated dashboard gains nothing from SSR or SEO. Removes server components, route groups, middleware, and Vercel-SSR coupling. All calls go directly to FastAPI over the already-whitelisted CORS origins. |
-| Parent design §10 (Testing) | pytest against in-memory SQLite | pytest against real Postgres via `testcontainers`, schema applied by running Alembic migrations | `citext`, `text[]`, `jsonb`, partial unique indexes, and RLS cannot be exercised on SQLite. The parent design's own RLS success criterion was unreachable. |
+| Parent design §10 (Testing) | pytest against in-memory SQLite | pytest against the **locally installed PostgreSQL 18** server, in a throwaway database per session, schema applied by running Alembic migrations | `citext`, `text[]`, `jsonb`, partial unique indexes, and RLS cannot be exercised on SQLite. The parent design's own RLS success criterion was unreachable. No Docker is used. |
 
 Unchanged and still binding: two-level tenancy (D2), BYOK (D3), FastAPI-native WebSockets (D4), the layered `api → services → repositories` structure, the response envelopes, bcrypt for passwords, 15-minute access / 7-day refresh lifetimes, and workspace-scoped repository signatures.
 
@@ -63,7 +63,7 @@ Unchanged and still binding: two-level tenancy (D2), BYOK (D3), FastAPI-native W
 
 ### 4.1 Stack
 
-Python 3.12+. FastAPI with uvicorn. SQLAlchemy 2.0 async with asyncpg. Alembic. Pydantic v2 with pydantic-settings. **PyJWT** for tokens. **`bcrypt` used directly**, without passlib — this honours the architecture's mandated bcrypt algorithm while removing an unmaintained dependency and its known crash. pytest with pytest-asyncio, httpx, and `testcontainers[postgres]`.
+Python 3.12+. FastAPI with uvicorn. SQLAlchemy 2.0 async with asyncpg. Alembic. Pydantic v2 with pydantic-settings. **PyJWT** for tokens. **`bcrypt` used directly**, without passlib — this honours the architecture's mandated bcrypt algorithm while removing an unmaintained dependency and its known crash. pytest with pytest-asyncio and httpx, plus `psycopg` used **only** by the test harness to `CREATE`/`DROP DATABASE` (which cannot run inside a transaction); the application itself never touches psycopg.
 
 Plus **`import-linter`**, which enforces the slice boundaries in §4.4 as a CI check rather than a convention.
 
@@ -104,7 +104,7 @@ backend/
       health/                # liveness + readiness
   alembic/
   tests/                     # only cross-slice suites: isolation, RLS, migrations
-    conftest.py              # testcontainers Postgres, Alembic-applied schema, client fixtures
+    conftest.py              # throwaway local DB, Alembic-applied schema, client fixtures
 ```
 
 Each slice contains `models.py`, `schemas.py`, `repository.py`, `use_cases/` (one module per operation), `router.py`, `api.py`, and `tests/`. Slice-local tests live **with the slice**; only genuinely cross-cutting suites live in the top-level `tests/`.
@@ -253,7 +253,11 @@ The superseded plan's health check returned `ok` unconditionally, so it would ha
 
 ## 12. Testing
 
-A session-scoped `testcontainers` Postgres container, with the schema created **by running Alembic migrations** rather than `Base.metadata.create_all`. This means every test run also proves the migrations apply cleanly — something the superseded plan never checked, despite migrations being a deliverable. Each test runs inside a transaction that is rolled back afterwards.
+Tests run against the **locally installed PostgreSQL 18 server** on `localhost:5432`. Each session creates a throwaway database (`wcb_test_<random>`), applies the schema **by running Alembic migrations** rather than `Base.metadata.create_all`, and drops the database afterwards. Applying the real chain means every test run also proves the migrations work from empty to head — something the superseded plan never checked, despite migrations being a deliverable. Each test then runs inside a transaction that is rolled back.
+
+`TEST_DATABASE_URL` overrides the superuser connection when the local password or port differ from the default. Docker is deliberately not used: the machine already runs Postgres, and a container would add a dependency without adding fidelity.
+
+One consequence worth knowing: the `app_restricted` role from §9 is **cluster-wide**, not per-database, so it outlives the throwaway database. Its creation is guarded by `IF NOT EXISTS`, and the per-database grants disappear with the database, so repeat runs are clean.
 
 Four suites carry the phase:
 

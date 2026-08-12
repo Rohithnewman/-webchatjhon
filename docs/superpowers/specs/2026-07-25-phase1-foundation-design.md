@@ -14,7 +14,7 @@
 >
 > 1. **§5.1 token claims** — the access JWT no longer embeds `role` or `permissions`; both resolve from the database per request. This closes a 15-minute stale-privilege window and makes access revocable.
 > 2. **§9 frontend** — **React SPA (Vite + React Router v7), not Next.js.**
-> 3. **§10 testing** — tests run against real Postgres via `testcontainers`, not SQLite; the RLS smoke test in this section is unreachable on SQLite.
+> 3. **§10 testing** — tests run against the locally installed PostgreSQL server, not SQLite; the RLS smoke test in this section is unreachable on SQLite.
 >
 > Sections marked below carry inline notes. Everything else stands.
 
@@ -134,7 +134,7 @@ Slice names mirror backend slices: `identity` → `entities/user` + login/regist
 
 ## 10. Testing strategy
 
-> **Amended 2026-08-11:** the test database is **real Postgres via `testcontainers`**, with the schema applied by running Alembic migrations. SQLite cannot express `citext`, `text[]`, `jsonb`, partial unique indexes, or RLS — which made the RLS smoke test below unreachable.
+> **Amended 2026-08-11:** the test database is a **throwaway database on the locally installed PostgreSQL 18 server**, with the schema applied by running Alembic migrations. No Docker. SQLite cannot express `citext`, `text[]`, `jsonb`, partial unique indexes, or RLS — which made the RLS smoke test below unreachable.
 
 - **Backend:** pytest + async client. Unit tests for services (auth, RBAC, isolation). Integration tests hitting real endpoints against a test DB. **Isolation tests are mandatory:** assert workspace A can never read/mutate workspace B data via any endpoint. Token lifecycle tests (expiry, refresh rotation, revocation/logout). RLS smoke test.
 - **Frontend:** component tests for auth forms (validation, error states); a happy-path integration for register → login → dashboard.

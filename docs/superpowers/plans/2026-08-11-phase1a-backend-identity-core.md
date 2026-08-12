@@ -6,7 +6,9 @@
 
 **Architecture:** Vertical slice. `app/core/` holds infrastructure with no domain logic, `app/shared/` is a deliberately tiny shared kernel, and each feature lives in `app/slices/<name>/` owning its models, schemas, repository, use cases, router, tests, and a published `api.py`. A slice may import `core`, `shared`, and other slices' `api.py` — nothing else — enforced by `import-linter` in CI. Slice order: `tenancy` and `audit` at the bottom, then `identity`, then `authz`. Authentication (`identity`) and authorization (`authz`) are separate slices because the defect that motivated this rewrite lived exactly at that seam.
 
-**Tech Stack:** Python 3.12+, FastAPI, uvicorn, SQLAlchemy 2.0 (async), asyncpg, Alembic, Pydantic v2, pydantic-settings, PyJWT, bcrypt (used directly — not passlib), pytest, pytest-asyncio, httpx, testcontainers[postgres], import-linter.
+**Tech Stack:** Python 3.12+, FastAPI, uvicorn, SQLAlchemy 2.0 (async), asyncpg, Alembic, Pydantic v2, pydantic-settings, PyJWT, bcrypt (used directly — not passlib), pytest, pytest-asyncio, httpx, psycopg (test-time admin DDL only), import-linter.
+
+**Test database:** the **locally installed PostgreSQL 18** at `localhost:5432`. No Docker, no testcontainers. Each test session creates a throwaway database, runs the Alembic chain into it, and drops it at the end. Set `TEST_DATABASE_URL` if your superuser, password, or port differ from the default.
 
 **Spec:** `docs/superpowers/specs/2026-08-11-phase1a-backend-identity-core-design.md`
 
@@ -26,7 +28,7 @@
 - Every tenant-scoped repository function takes `workspace_id` as a mandatory keyword argument.
 - All configuration via environment variables. No hardcoded secrets.
 - Type hints on every function. `async`/`await` for all DB calls.
-- Tests run against **real Postgres** via testcontainers, with the schema applied by running Alembic migrations. There is no SQLite anywhere.
+- Tests run against the **local PostgreSQL 18 server**, in a throwaway database created and dropped per session, with the schema applied by running Alembic migrations. There is no SQLite anywhere and no Docker.
 
 ## File Structure
 
@@ -67,6 +69,28 @@ backend/
     test_isolation.py         # cross-workspace safety net
     test_rls.py               # RLS under the restricted role
     test_boundaries.py        # import-linter contracts execute in CI
+```
+
+## Prerequisites (one-time, before Task 1)
+
+PostgreSQL 18 is already installed and running as service `postgresql-x64-18` on `localhost:5432`. `psql` is not on PATH; it lives at `C:\Program Files\PostgreSQL\18\bin\psql.exe`.
+
+- [ ] **Confirm the superuser connection works**, since the test harness needs it to create and drop scratch databases:
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -c "SELECT version();"
+```
+
+Enter the password set during installation. If it is not `postgres`, export the real one before running any tests:
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://postgres:YOURPASSWORD@localhost:5432/postgres"
+```
+
+- [ ] **Create the development database** used by `DATABASE_URL` (separate from the per-run test databases):
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -c "CREATE DATABASE webchatbots;"
 ```
 
 ---
@@ -128,7 +152,9 @@ greenlet>=3.1
 pytest>=8.3
 pytest-asyncio>=0.24
 httpx>=0.27
-testcontainers[postgres]>=4.8
+# Test-time only: CREATE/DROP DATABASE must run outside a transaction on a
+# sync connection. The application itself never uses psycopg.
+psycopg[binary]>=3.2
 import-linter>=2.1
 ```
 
@@ -190,6 +216,11 @@ ENVIRONMENT=development
 # Local dev. In production use the Supabase DIRECT connection (port 5432) for
 # Alembic, and the pooler (port 6543) for the app.
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/webchatbots
+
+# Superuser connection used ONLY by the test suite, to create and drop a
+# throwaway database per run. Points at the local PostgreSQL 18 server.
+# Change the password to match your local install.
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
 
 # Generate with: python -c "import secrets; print(secrets.token_urlsafe(64))"
 JWT_SECRET=dev-only-change-me
@@ -706,30 +737,69 @@ async def readiness(session: AsyncSession = Depends(get_session)) -> dict:
     return success({"status": "ok", "database": "ok"})
 ```
 
-- [ ] **Step 5: Write `tests/conftest.py` with the Postgres container**
+- [ ] **Step 5: Write `tests/conftest.py` against the local PostgreSQL server**
 
 ```python
+import os
+import uuid
+from urllib.parse import urlsplit, urlunsplit
+
+import psycopg
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine
-from testcontainers.postgres import PostgresContainer
 
 from app.core.database import build_engine
+
+# Superuser connection to the LOCAL PostgreSQL 18 server. Override via env
+# when the password or port differ.
+ADMIN_URL = os.getenv(
+    "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres"
+)
+
+
+def _with_database(url: str, database: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit(parts._replace(path=f"/{database}"))
 
 
 @pytest.fixture(scope="session")
 def postgres_url() -> str:
-    """One Postgres container for the whole test session.
+    """Create a throwaway database on the local server for this test session.
 
-    Requires Docker to be running. There is no SQLite fallback: citext,
-    text[], jsonb, partial unique indexes, and RLS are all Postgres-only and
-    all load-bearing in this phase.
+    No Docker. There is also no SQLite fallback: citext, text[], jsonb,
+    partial unique indexes, and RLS are all Postgres-only and all
+    load-bearing in this phase.
+
+    CREATE DATABASE cannot run inside a transaction, which is why this uses a
+    synchronous autocommit psycopg connection. The application itself never
+    touches psycopg.
     """
-    with PostgresContainer("postgres:16-alpine") as container:
-        raw = container.get_connection_url()  # postgresql+psycopg2://...
-        yield raw.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    db_name = f"wcb_test_{uuid.uuid4().hex[:12]}"
+
+    try:
+        with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
+            conn.execute(f'CREATE DATABASE "{db_name}"')
+    except psycopg.OperationalError as exc:
+        pytest.fail(
+            "Could not reach the local PostgreSQL server.\n"
+            "Set TEST_DATABASE_URL to a superuser connection string, e.g.\n"
+            "  set TEST_DATABASE_URL="
+            "postgresql://postgres:YOURPASSWORD@localhost:5432/postgres\n"
+            f"Original error: {exc}"
+        )
+
+    try:
+        yield _with_database(ADMIN_URL, db_name).replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )
+    finally:
+        with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
+            # FORCE terminates any lingering connections (PostgreSQL 13+).
+            conn.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def db_engine(postgres_url: str) -> AsyncEngine:
     engine = build_engine(postgres_url)
     yield engine
@@ -739,7 +809,14 @@ async def db_engine(postgres_url: str) -> AsyncEngine:
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cd backend && pytest -v`
-Expected: PASS. The first run pulls the `postgres:16-alpine` image, so allow a minute. If Docker is not running the container fixture errors — start Docker Desktop and retry.
+Expected: PASS.
+
+If the run fails with an authentication error, the local `postgres` superuser password differs from the default. Set it for the session and retry:
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://postgres:YOURPASSWORD@localhost:5432/postgres"
+pytest -v
+```
 
 - [ ] **Step 7: Commit**
 
@@ -1303,31 +1380,64 @@ def downgrade() -> None:
 Replace the file entirely:
 
 ```python
+import os
+import uuid
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
+import psycopg
 import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from testcontainers.postgres import PostgresContainer
 
 from app.core.database import build_engine
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
+ADMIN_URL = os.getenv(
+    "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres"
+)
+
+
+def _with_database(url: str, database: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit(parts._replace(path=f"/{database}"))
+
 
 @pytest.fixture(scope="session")
 def postgres_url() -> str:
-    """One Postgres container for the whole test session.
+    """Create a throwaway database on the local PostgreSQL 18 server.
 
-    Requires Docker to be running. There is deliberately no SQLite fallback:
-    citext, text[], jsonb, partial unique indexes, and RLS are all
-    Postgres-only and all load-bearing in this phase.
+    No Docker. There is deliberately no SQLite fallback: citext, text[],
+    jsonb, partial unique indexes, and RLS are all Postgres-only and all
+    load-bearing in this phase.
+
+    CREATE DATABASE cannot run inside a transaction, hence a synchronous
+    autocommit psycopg connection. The application never touches psycopg.
     """
-    with PostgresContainer("postgres:16-alpine") as container:
-        raw = container.get_connection_url()  # postgresql+psycopg2://...
-        yield raw.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    db_name = f"wcb_test_{uuid.uuid4().hex[:12]}"
+
+    try:
+        with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
+            conn.execute(f'CREATE DATABASE "{db_name}"')
+    except psycopg.OperationalError as exc:
+        pytest.fail(
+            "Could not reach the local PostgreSQL server.\n"
+            "Set TEST_DATABASE_URL to a superuser connection string, e.g.\n"
+            "  set TEST_DATABASE_URL="
+            "postgresql://postgres:YOURPASSWORD@localhost:5432/postgres\n"
+            f"Original error: {exc}"
+        )
+
+    try:
+        yield _with_database(ADMIN_URL, db_name).replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )
+    finally:
+        with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
+            conn.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
 
 
 @pytest.fixture(scope="session")
@@ -1566,6 +1676,8 @@ Add at the end of `upgrade()`:
         "TO app_restricted"
     )
 ```
+
+Note: roles in PostgreSQL are **cluster-wide**, not per-database, so `app_restricted` outlives each throwaway test database. That is why creation is guarded by `IF NOT EXISTS` — the grants are per-database and vanish with the database, so repeat test runs stay clean.
 
 Add at the **start** of `downgrade()`:
 
