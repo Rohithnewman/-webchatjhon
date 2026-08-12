@@ -23,6 +23,10 @@ def _app_with_probe_routes():
     async def validate(body: _Body):
         return {"ok": body.count}
 
+    @router.get("/api/v1/_probe/unhandled")
+    async def unhandled():
+        raise RuntimeError("boom")
+
     app.include_router(router)
     return app
 
@@ -53,3 +57,19 @@ async def test_validation_error_renders_400_envelope():
     assert body["success"] is False
     assert body["error"] == "VALIDATION_ERROR"
     assert "errors" in body["details"]
+
+
+async def test_unhandled_exception_renders_500_envelope():
+    # ASGITransport re-raises server exceptions by default; disable that so
+    # the registered handler's response is what the client actually receives.
+    transport = ASGITransport(app=_app_with_probe_routes(), raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://t") as ac:
+        resp = await ac.get("/api/v1/_probe/unhandled")
+
+    assert resp.status_code == 500
+    assert resp.json() == {
+        "success": False,
+        "error": "INTERNAL_ERROR",
+        "message": "Internal server error",
+        "details": None,
+    }
