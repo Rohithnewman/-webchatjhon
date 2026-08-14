@@ -26,8 +26,17 @@ def test_cors_origins_parses_values_sourced_from_the_environment(
 
 def test_production_rejects_the_development_jwt_secret():
     with pytest.raises(ValueError):
-        Settings(ENVIRONMENT="production", JWT_SECRET="dev-only-change-me")
+        Settings(
+            ENVIRONMENT="production",
+            JWT_SECRET="dev-only-change-me-use-at-least-32-bytes",
+        )
+
+
+def test_production_rejects_a_short_jwt_secret():
+    with pytest.raises(ValueError):
+        Settings(ENVIRONMENT="production", JWT_SECRET="too-short")
 
 
 def test_production_accepts_a_real_jwt_secret():
-    assert Settings(ENVIRONMENT="production", JWT_SECRET="a-real-secret").JWT_SECRET
+    secret = "a-real-production-secret-with-32-bytes"
+    assert Settings(ENVIRONMENT="production", JWT_SECRET=secret).JWT_SECRET == secret

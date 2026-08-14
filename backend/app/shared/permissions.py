@@ -1,0 +1,5 @@
+ALL = "*"
+WORKSPACE_MANAGE = "workspace:manage"
+MEMBERS_MANAGE = "members:manage"
+FEATURES_USE = "features:use"
+FEATURES_READ = "features:read"

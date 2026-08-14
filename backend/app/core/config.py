@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-_DEV_SECRET = "dev-only-change-me"
+_DEV_SECRET = "dev-only-change-me-use-at-least-32-bytes"
 
 
 class Settings(BaseSettings):
@@ -42,8 +42,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _reject_dev_secret_in_production(self) -> "Settings":
-        if self.ENVIRONMENT == "production" and self.JWT_SECRET == _DEV_SECRET:
-            raise ValueError("JWT_SECRET must be set to a real secret in production")
+        if self.ENVIRONMENT == "production" and (
+            self.JWT_SECRET == _DEV_SECRET
+            or len(self.JWT_SECRET.encode("utf-8")) < 32
+        ):
+            raise ValueError(
+                "JWT_SECRET must be a real secret of at least 32 bytes in production"
+            )
         return self
 
 

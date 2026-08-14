@@ -1,0 +1,8 @@
+REGISTER = "auth.register"
+LOGIN = "auth.login"
+LOGIN_FAILED = "auth.login_failed"
+ACCOUNT_LOCKED = "auth.account_locked"
+LOGOUT = "auth.logout"
+REFRESH = "auth.refresh"
+REFRESH_REUSE_DETECTED = "auth.refresh_reuse_detected"
+SWITCH_WORKSPACE = "auth.switch_workspace"

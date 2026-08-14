@@ -1,12 +1,14 @@
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 # Session-scoped async fixtures (the Postgres container engine) need a
-# session-scoped event loop. Without this, pytest-asyncio 0.24+ raises
-# "ScopeMismatch" the moment an async fixture outlives a single test.
+# session-scoped event loop. The tests must use that same loop because an
+# asyncpg connection created in one loop cannot be reused from another.
 asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 pythonpath = ["."]
 testpaths = ["tests", "app"]
 python_files = ["test_*.py"]
+addopts = "-p no:cacheprovider"
 
 [tool.importlinter]
 root_packages = ["app"]
@@ -16,3 +18,53 @@ name = "core and shared never import slices"
 type = "forbidden"
 source_modules = ["app.core", "app.shared"]
 forbidden_modules = ["app.slices"]
+ignore_imports = [
+    "app.core.registry -> app.slices.audit.models",
+    "app.core.registry -> app.slices.identity.models",
+    "app.core.registry -> app.slices.tenancy.models",
+]
+
+[[tool.importlinter.contracts]]
+name = "authorization and identity form a layered dependency graph"
+type = "layers"
+layers = [
+    "app.slices.authz",
+    "app.slices.identity",
+    "app.slices.tenancy",
+]
+
+[[tool.importlinter.contracts]]
+name = "cross-slice imports use published APIs only"
+type = "forbidden"
+source_modules = [
+    "app.slices.authz",
+    "app.slices.identity",
+    "app.slices.tenancy",
+    "app.slices.audit",
+    "app.slices.health",
+]
+forbidden_modules = [
+    "app.slices.authz.dependencies",
+    "app.slices.identity.dependencies",
+    "app.slices.identity.models",
+    "app.slices.identity.repository",
+    "app.slices.identity.router",
+    "app.slices.identity.schemas",
+    "app.slices.identity.use_cases",
+    "app.slices.tenancy.models",
+    "app.slices.tenancy.repository",
+    "app.slices.tenancy.seed",
+    "app.slices.audit.actions",
+    "app.slices.audit.models",
+    "app.slices.audit.repository",
+    "app.slices.health.router",
+]
+ignore_imports = [
+    "app.slices.identity.* -> app.slices.identity.*",
+    "app.slices.tenancy.* -> app.slices.tenancy.*",
+    "app.slices.audit.* -> app.slices.audit.*",
+    "app.slices.identity.tests.test_models -> app.core.registry",
+    "app.slices.authz.tests.test_guards -> app.main",
+    "app.slices.authz.tests.test_guards -> app.slices.identity.use_cases.register",
+    "app.slices.health.tests.test_health -> app.main",
+]
