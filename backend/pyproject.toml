@@ -20,6 +20,7 @@ source_modules = ["app.core", "app.shared"]
 forbidden_modules = ["app.slices"]
 ignore_imports = [
     "app.core.registry -> app.slices.audit.models",
+    "app.core.registry -> app.slices.chatbots.models",
     "app.core.registry -> app.slices.identity.models",
     "app.core.registry -> app.slices.tenancy.models",
 ]
@@ -42,6 +43,7 @@ source_modules = [
     "app.slices.tenancy",
     "app.slices.audit",
     "app.slices.health",
+    "app.slices.chatbots",
 ]
 forbidden_modules = [
     "app.slices.authz.dependencies",
@@ -58,13 +60,23 @@ forbidden_modules = [
     "app.slices.audit.models",
     "app.slices.audit.repository",
     "app.slices.health.router",
+    "app.slices.chatbots.models",
+    "app.slices.chatbots.repository",
+    "app.slices.chatbots.router",
+    "app.slices.chatbots.schemas",
+    "app.slices.chatbots.service",
 ]
 ignore_imports = [
     "app.slices.identity.* -> app.slices.identity.*",
     "app.slices.tenancy.* -> app.slices.tenancy.*",
     "app.slices.audit.* -> app.slices.audit.*",
+    "app.slices.chatbots.* -> app.slices.chatbots.*",
+    "app.slices.authz.api -> app.slices.authz.dependencies",
     "app.slices.identity.tests.test_models -> app.core.registry",
     "app.slices.authz.tests.test_guards -> app.main",
     "app.slices.authz.tests.test_guards -> app.slices.identity.use_cases.register",
     "app.slices.health.tests.test_health -> app.main",
+    "app.slices.chatbots.tests.test_chatbot_api -> app.slices.identity.use_cases.register",
+    "app.slices.chatbots.tests.test_concurrency -> app.slices.identity.use_cases.register",
+    "app.slices.chatbots.tests.test_rls -> app.slices.identity.use_cases.register",
 ]

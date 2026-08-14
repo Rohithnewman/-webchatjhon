@@ -24,6 +24,15 @@ def test_cors_origins_parses_values_sourced_from_the_environment(
     assert Settings(_env_file=None).CORS_ORIGINS == expected
 
 
+def test_development_cors_allows_both_loopback_hostnames(monkeypatch):
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+
+    assert Settings(_env_file=None).CORS_ORIGINS == [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+
 def test_production_rejects_the_development_jwt_secret():
     with pytest.raises(ValueError):
         Settings(

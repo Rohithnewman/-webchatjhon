@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
+from app.slices.chatbots.router import router as chatbot_router
 from app.slices.health.router import router as health_router
 from app.slices.identity.router import router as auth_router
 
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(chatbot_router)
 
     return app
 

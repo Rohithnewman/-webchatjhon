@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     # on the raw env value inside EnvSettingsSource and raises SettingsError
     # BEFORE any field validator runs — so the validator below would be dead
     # code and `CORS_ORIGINS=http://a.com,http://b.com` would crash at import.
-    CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 
     LOGIN_MAX_FAILURES: int = 5
     LOCKOUT_MINUTES: int = 15
