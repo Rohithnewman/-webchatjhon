@@ -1,0 +1,66 @@
+/* Shared by Input, Textarea and Select so a control's resting, focus and
+   invalid states are defined exactly once. */
+.control {
+  width: 100%;
+  min-height: var(--control-md);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.control:focus {
+  border-color: var(--color-brand);
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.control::placeholder {
+  color: var(--color-ink-muted);
+}
+
+.invalid {
+  border-color: var(--color-danger);
+}
+
+.invalid:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(173, 53, 47, 0.14);
+}
+
+.textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+/* Input with a leading adornment (search, email, password fields). */
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--control-lg);
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+}
+
+.wrap:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: var(--focus-ring);
+}
+
+.wrap.invalid {
+  border-color: var(--color-danger);
+}
+
+.bare {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-ink);
+}
