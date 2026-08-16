@@ -22,6 +22,7 @@ ignore_imports = [
     "app.core.registry -> app.slices.audit.models",
     "app.core.registry -> app.slices.chatbots.models",
     "app.core.registry -> app.slices.identity.models",
+    "app.core.registry -> app.slices.jobs.models",
     "app.core.registry -> app.slices.tenancy.models",
 ]
 
@@ -44,8 +45,11 @@ source_modules = [
     "app.slices.audit",
     "app.slices.health",
     "app.slices.chatbots",
+    "app.slices.jobs",
 ]
 forbidden_modules = [
+    "app.slices.jobs.models",
+    "app.slices.jobs.repository",
     "app.slices.authz.dependencies",
     "app.slices.identity.dependencies",
     "app.slices.identity.models",
@@ -71,6 +75,8 @@ ignore_imports = [
     "app.slices.tenancy.* -> app.slices.tenancy.*",
     "app.slices.audit.* -> app.slices.audit.*",
     "app.slices.chatbots.* -> app.slices.chatbots.*",
+    "app.slices.jobs.* -> app.slices.jobs.*",
+    "app.slices.jobs.tests.test_worker -> app.worker",
     "app.slices.authz.api -> app.slices.authz.dependencies",
     "app.slices.identity.tests.test_models -> app.core.registry",
     "app.slices.authz.tests.test_guards -> app.main",
