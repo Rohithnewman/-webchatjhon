@@ -6,6 +6,12 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _DEV_SECRET = "dev-only-change-me-use-at-least-32-bytes"
 
+# A valid Fernet key so local development works out of the box. Production is
+# blocked from using it by the validator below.
+# Generate a real one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+_DEV_ENCRYPTION_KEY = "ZGV2LW9ubHktY2hhbmdlLW1lLTMyYnl0ZXNsb25nISE="
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -28,6 +34,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # Symmetric key protecting per-workspace provider credentials at rest.
+    # Rotating it makes every stored credential undecryptable, so it is
+    # deployment state, not a per-release value.
+    ENCRYPTION_KEY: str = _DEV_ENCRYPTION_KEY
+
     LOGIN_MAX_FAILURES: int = 5
     LOCKOUT_MINUTES: int = 15
     RATE_LIMIT_PER_MINUTE: int = 20
@@ -45,12 +56,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _reject_dev_secret_in_production(self) -> "Settings":
-        if self.ENVIRONMENT == "production" and (
-            self.JWT_SECRET == _DEV_SECRET
-            or len(self.JWT_SECRET.encode("utf-8")) < 32
-        ):
+        if self.ENVIRONMENT != "production":
+            return self
+
+        if self.JWT_SECRET == _DEV_SECRET or len(self.JWT_SECRET.encode("utf-8")) < 32:
             raise ValueError(
                 "JWT_SECRET must be a real secret of at least 32 bytes in production"
+            )
+        if self.ENCRYPTION_KEY == _DEV_ENCRYPTION_KEY:
+            raise ValueError(
+                "ENCRYPTION_KEY must be set in production; the development key is public"
             )
         return self
 

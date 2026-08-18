@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "../features/auth/model/auth-store";
 import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
+import { KnowledgePage } from "../pages/knowledge/KnowledgePage";
 import { LoadingState, ToastProvider } from "../shared/ui";
 
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ function AppRoutes() {
         path="/builder/:chatbotId?"
         element={authenticated ? <BuilderPage /> : <Navigate to="/login" replace />}
       />
+      <Route path="/knowledge" element={authenticated ? <KnowledgePage /> : <Navigate to="/login" replace />} />
       <Route
         path="*"
         element={<Navigate to={authenticated ? "/builder" : "/login"} replace />}

@@ -6,6 +6,8 @@ from app.core.errors import register_exception_handlers
 from app.slices.chatbots.router import router as chatbot_router
 from app.slices.health.router import router as health_router
 from app.slices.identity.router import router as auth_router
+from app.slices.providers.router import router as providers_router
+from app.slices.knowledge.router import router as knowledge_router
 
 
 def create_app() -> FastAPI:
@@ -24,6 +26,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(chatbot_router)
+    app.include_router(providers_router)
+    app.include_router(knowledge_router)
 
     return app
 

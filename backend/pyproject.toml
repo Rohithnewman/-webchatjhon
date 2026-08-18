@@ -24,6 +24,8 @@ ignore_imports = [
     "app.core.registry -> app.slices.identity.models",
     "app.core.registry -> app.slices.jobs.models",
     "app.core.registry -> app.slices.tenancy.models",
+    "app.core.registry -> app.slices.providers.models",
+    "app.core.registry -> app.slices.knowledge.models",
 ]
 
 [[tool.importlinter.contracts]]
@@ -49,6 +51,8 @@ source_modules = [
 ]
 forbidden_modules = [
     "app.slices.jobs.models",
+    "app.slices.providers.models",
+    "app.slices.knowledge.models",
     "app.slices.jobs.repository",
     "app.slices.authz.dependencies",
     "app.slices.identity.dependencies",
@@ -76,6 +80,8 @@ ignore_imports = [
     "app.slices.audit.* -> app.slices.audit.*",
     "app.slices.chatbots.* -> app.slices.chatbots.*",
     "app.slices.jobs.* -> app.slices.jobs.*",
+    "app.slices.providers.* -> app.slices.providers.*",
+    "app.slices.knowledge.* -> app.slices.knowledge.*",
     "app.slices.jobs.tests.test_worker -> app.worker",
     "app.slices.authz.api -> app.slices.authz.dependencies",
     "app.slices.identity.tests.test_models -> app.core.registry",

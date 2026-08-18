@@ -8,6 +8,8 @@ pydantic-settings>=2.6
 email-validator>=2.2
 PyJWT>=2.9
 bcrypt>=4.2
+# Fernet, for encrypting per-workspace provider credentials at rest.
+cryptography>=44
 python-multipart>=0.0.12
 greenlet>=3.1
 
