@@ -1,0 +1,67 @@
+- generic [ref=e2]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: "An illustration of the Ambot365 workflow: customer conversations arrive from WhatsApp, Instagram, Messenger and web chat, WebChatBot answers and resolves them automatically, and Ambot365 CRM records the result while revenue rises."
+      - generic [ref=e6]:
+        - generic:
+          - generic:
+            - generic:
+              - strong: WebChatBot
+              - generic: Listening on 4 channels
+        - generic:
+          - generic:
+            - generic: Ambot365 CRM
+            - generic: Today
+          - generic:
+            - generic:
+              - generic: Total chats
+              - generic: 1,244
+            - generic:
+              - generic: Open
+              - generic: "366"
+            - generic:
+              - generic: Resolved
+              - generic: "878"
+          - generic:
+            - generic:
+              - generic: Revenue this month
+              - generic: ₹2,18,400
+          - generic:
+            - generic:
+              - generic: Recent conversations
+              - generic: 0 new
+            - list:
+              - listitem: Waiting for conversations
+      - list [ref=e7]:
+        - listitem [ref=e8]: Capture
+        - listitem [ref=e10]: Resolve
+        - listitem [ref=e12]: Record
+    - generic [ref=e15]:
+      - generic [ref=e21]:
+        - strong [ref=e22]: Ambot365
+        - generic [ref=e23]: CRM Automation Services
+      - generic [ref=e24]:
+        - heading "Welcome Back!" [level=1] [ref=e25]
+        - paragraph [ref=e26]: Login to manage your conversations, customers and grow your business.
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: Email Address
+          - textbox "Email Address" [ref=e35]:
+            - /placeholder: you@company.com
+        - generic [ref=e36]:
+          - generic [ref=e37]: Password
+          - generic [ref=e39]:
+            - textbox "Password" [ref=e44]:
+              - /placeholder: Your password
+            - button "Show password" [ref=e45] [cursor=pointer]
+        - button "Forgot Password?" [ref=e50] [cursor=pointer]
+        - button "Login" [ref=e51] [cursor=pointer]
+      - generic [ref=e52]: or continue with
+      - generic [ref=e54]:
+        - button "Login with Google" [ref=e55] [cursor=pointer]
+        - button "Login with Microsoft" [ref=e61] [cursor=pointer]
+      - paragraph [ref=e67]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e68] [cursor=pointer]:
+          - /url: /register
+  - status

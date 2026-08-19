@@ -1,0 +1,129 @@
+- generic [ref=f11e2]:
+  - main [ref=f11e3]:
+    - generic [ref=f11e4]:
+      - paragraph [ref=f11e5]: "An illustration of the Ambot365 workflow: customer conversations arrive from WhatsApp, Instagram, Messenger and web chat, WebChatBot answers and resolves them automatically, and Ambot365 records each resolved conversation in the shared inbox."
+      - generic [ref=f11e6]:
+        - generic:
+          - article:
+            - generic:
+              - text: WhatsApp
+              - generic: "2"
+            - generic:
+              - generic: JD
+              - generic:
+                - strong: John Doe
+                - generic: Hi, I need help with my order
+        - generic:
+          - generic:
+            - generic:
+              - strong: WebChatBot
+              - generic: Listening on 4 channels
+        - generic:
+          - generic:
+            - complementary:
+              - list:
+                - listitem:
+                  - generic: Home
+                - listitem:
+                  - generic: Chatbot
+                - listitem:
+                  - generic: Inbox
+                - listitem:
+                  - generic: Analytics
+                - listitem:
+                  - generic: Subscriptions
+                - listitem:
+                  - generic: Partner
+                - listitem:
+                  - generic: More
+            - generic:
+              - heading [level=3]: Inbox
+              - navigation:
+                - generic: Chats
+                - generic: Appointments
+                - generic: Contacts
+                - generic: Groups
+              - generic: Type name, email or phone, and press enter
+              - generic:
+                - generic:
+                  - generic: Visitor Name
+                  - generic: Email
+                  - generic: Phone Number
+                  - generic: AI Summary
+                  - generic: Status
+                  - generic: Actions
+                - list:
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Ananya Rao
+                          - generic: "1"
+                        - generic: Aug 1, 2026 9:54 AM
+                    - generic: ananya.rao@lum...
+                    - generic: +91 90000 41188
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Marcus Lee
+                          - generic: "1"
+                        - generic: Jul 31, 2026 10:21 PM
+                    - generic: m.lee@northwin...
+                    - generic: NA
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Fatima Sheikh
+                          - generic: "1"
+                          - generic: "5"
+                        - generic: Jul 31, 2026 9:06 PM
+                    - generic: fatima@brightla...
+                    - generic: +91 90000 77410
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Rahul Menon
+                          - generic: "1"
+                        - generic: Jul 31, 2026 6:00 PM
+                    - generic: NA
+                    - generic: NA
+                    - generic: Open
+      - list [ref=f11e7]:
+        - listitem [ref=f11e8]: Capture
+        - listitem [ref=f11e10]: Resolve
+        - listitem [ref=f11e12]: Record
+    - generic [ref=f11e15]:
+      - generic [ref=f11e21]:
+        - strong [ref=f11e22]: Ambot365
+        - generic [ref=f11e23]: CRM Automation Services
+      - generic [ref=f11e24]:
+        - heading "Welcome Back!" [level=1] [ref=f11e25]
+        - paragraph [ref=f11e26]: Login to manage your conversations, customers and grow your business.
+      - generic [ref=f11e27]:
+        - generic [ref=f11e28]:
+          - generic [ref=f11e29]: Email Address
+          - textbox "Email Address" [ref=f11e35]:
+            - /placeholder: you@company.com
+        - generic [ref=f11e36]:
+          - generic [ref=f11e37]: Password
+          - generic [ref=f11e39]:
+            - textbox "Password" [ref=f11e44]:
+              - /placeholder: Your password
+            - button "Show password" [ref=f11e45] [cursor=pointer]
+        - button "Forgot Password?" [ref=f11e50] [cursor=pointer]
+        - button "Login" [ref=f11e51] [cursor=pointer]
+      - generic [ref=f11e52]: or continue with
+      - generic [ref=f11e54]:
+        - button "Login with Google" [ref=f11e55] [cursor=pointer]
+        - button "Login with Microsoft" [ref=f11e61] [cursor=pointer]
+      - paragraph [ref=f11e67]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=f11e68] [cursor=pointer]:
+          - /url: /register
+  - status

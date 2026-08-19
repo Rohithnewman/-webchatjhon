@@ -1,0 +1,266 @@
+/**
+ * WebChatBot. `--energy` (work in flight) and `--impact` (a conversation
+ * landing) are written by the story clock; everything below is derived from
+ * those two numbers, so the component has exactly one moving idea.
+ */
+
+.root {
+  --energy: 0;
+  --impact: 0;
+  --pupil-x: 0px;
+  --pupil-y: 0px;
+
+  position: absolute;
+  left: 30%;
+  top: 38%;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.halo,
+.ring,
+.ripple,
+.rippleWide {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.halo {
+  width: 190px;
+  height: 190px;
+  background: radial-gradient(
+    circle,
+    rgba(29, 255, 178, calc(0.16 + var(--energy) * 0.24)) 0%,
+    rgba(22, 199, 132, 0.06) 45%,
+    rgba(22, 199, 132, 0) 70%
+  );
+  scale: calc(0.86 + var(--energy) * 0.18 + var(--impact) * 0.12);
+}
+
+.ring {
+  width: 118px;
+  height: 118px;
+  border: 1.5px solid rgba(22, 199, 132, calc(0.16 + var(--energy) * 0.4));
+  scale: calc(0.94 + var(--impact) * 0.14);
+}
+
+.ripple,
+.rippleWide {
+  width: 118px;
+  height: 118px;
+  border: 1.5px solid rgba(29, 255, 178, 0.6);
+  /* Peaks mid-impact and is gone by the end of it — a knock, not a pulse. */
+  opacity: calc(var(--impact) * (1 - var(--impact)) * 3.4);
+  scale: calc(0.86 + var(--impact) * 0.85);
+}
+
+.rippleWide {
+  border-width: 1px;
+  border-color: rgba(22, 199, 132, 0.42);
+  opacity: calc(var(--impact) * (1 - var(--impact)) * 2.2);
+  scale: calc(0.86 + var(--impact) * 1.5);
+}
+
+.root[data-state="idle"] .ring {
+  animation: breathe 4.6s ease-in-out infinite;
+}
+
+.module {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px 10px 11px;
+  border: 1px solid rgba(22, 199, 132, 0.3);
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(240, 252, 247, 0.92));
+  box-shadow:
+    0 2px 6px rgba(23, 35, 31, 0.06),
+    0 calc(10px + var(--energy) * 10px) calc(26px + var(--energy) * 22px)
+      rgba(22, 199, 132, calc(0.14 + var(--energy) * 0.2));
+  backdrop-filter: blur(10px);
+  /* The knock when a conversation is absorbed. */
+  scale: calc(1 + var(--impact) * 0.045);
+  will-change: transform, box-shadow;
+}
+
+.face {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 40px;
+  border-radius: 13px;
+  background: linear-gradient(155deg, var(--ambot-dark), #21362e);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(29, 255, 178, calc(0.12 + var(--energy) * 0.3));
+}
+
+.eyes {
+  display: flex;
+  gap: 7px;
+  transform-origin: center;
+}
+
+.eye {
+  position: relative;
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(29, 255, 178, calc(0.2 + var(--energy) * 0.22));
+  display: grid;
+  place-items: center;
+}
+
+.pupil {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ambot-bright);
+  box-shadow: 0 0 calc(4px + var(--energy) * 8px) rgba(29, 255, 178, 0.9);
+  translate: var(--pupil-x) var(--pupil-y);
+}
+
+.meta {
+  display: grid;
+  grid-template-areas:
+    "name status-stack"
+    "status status";
+  align-items: center;
+  gap: 1px 8px;
+}
+
+.name {
+  grid-area: name;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--ambot-dark);
+}
+
+.statusStack {
+  grid-area: status-stack;
+  position: relative;
+  width: 26px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.dots,
+.check {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition:
+    opacity 220ms ease,
+    scale 220ms ease;
+}
+
+.dots {
+  grid-auto-flow: column;
+  gap: 3px;
+  opacity: 0;
+  scale: 0.8;
+}
+
+.dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ambot-primary);
+}
+
+.check {
+  color: var(--ambot-primary);
+  opacity: 0;
+  scale: 0.7;
+}
+
+.root[data-state="receiving"] .dots,
+.root[data-state="processing"] .dots {
+  opacity: 1;
+  scale: 1;
+}
+
+.root[data-state="processing"] .dots i {
+  animation: think 1.05s ease-in-out infinite;
+}
+.root[data-state="processing"] .dots i:nth-child(2) {
+  animation-delay: 0.14s;
+}
+.root[data-state="processing"] .dots i:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+.root[data-state="resolved"] .check {
+  opacity: 1;
+  scale: 1;
+}
+
+.status {
+  grid-area: status;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--ambot-muted);
+  white-space: nowrap;
+}
+
+.root[data-state="resolved"] .status {
+  color: var(--ambot-primary);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    scale: 0.94;
+    opacity: 0.75;
+  }
+  50% {
+    scale: 1.04;
+    opacity: 1;
+  }
+}
+
+@keyframes think {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .halo {
+    width: 150px;
+    height: 150px;
+  }
+  .ring {
+    width: 96px;
+    height: 96px;
+  }
+  .module {
+    padding: 8px 12px 8px 9px;
+    gap: 9px;
+  }
+  .face {
+    width: 36px;
+    height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-state="idle"] .ring,
+  .root[data-state="processing"] .dots i {
+    animation: none;
+  }
+}

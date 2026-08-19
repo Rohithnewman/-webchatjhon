@@ -6,6 +6,7 @@ import { useAuthStore } from "../features/auth/model/auth-store";
 import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
 import { KnowledgePage } from "../pages/knowledge/KnowledgePage";
+import { LoginPage } from "../pages/login/LoginPage";
 import { LoadingState, ToastProvider } from "../shared/ui";
 
 const queryClient = new QueryClient({
@@ -32,7 +33,7 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={authenticated ? <Navigate to="/builder" replace /> : <AuthPage mode="login" />}
+        element={authenticated ? <Navigate to="/builder" replace /> : <LoginPage />}
       />
       <Route
         path="/register"

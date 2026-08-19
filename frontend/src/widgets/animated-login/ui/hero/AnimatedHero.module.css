@@ -1,0 +1,168 @@
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(16px, 2.4vw, 36px);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 12% 8%, rgba(29, 255, 178, 0.13) 0%, rgba(29, 255, 178, 0) 55%),
+    radial-gradient(90% 80% at 92% 96%, rgba(22, 199, 132, 0.12) 0%, rgba(22, 199, 132, 0) 60%),
+    linear-gradient(160deg, #f7fdfa 0%, var(--ambot-bg) 46%, #eef7f3 100%);
+}
+
+/* Keeps the composition's proportions stable: the stage is laid out in
+   percentages, so its aspect ratio is part of the design. */
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.5;
+  max-height: 74vh;
+  margin: 0 auto;
+}
+
+.glowTop,
+.glowBottom,
+.grid {
+  position: absolute;
+  pointer-events: none;
+}
+
+.glowTop {
+  left: 26%;
+  top: 2%;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(29, 255, 178, 0.2), rgba(29, 255, 178, 0) 70%);
+  filter: blur(6px);
+}
+
+.glowBottom {
+  left: 2%;
+  bottom: -6%;
+  width: 52%;
+  height: 40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(22, 199, 132, 0.14), rgba(22, 199, 132, 0) 70%);
+  filter: blur(4px);
+}
+
+.grid {
+  inset: 0;
+  opacity: 0.5;
+  background-image: radial-gradient(circle at 1px 1px, rgba(23, 35, 31, 0.09) 1px, transparent 0);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(110% 90% at 50% 45%, #000 30%, transparent 78%);
+}
+
+/* ── Beat strip ───────────────────────────────────────────────────────── */
+
+.steps {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+  max-width: 460px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ambot-muted);
+  transition: color 320ms ease;
+}
+
+.step + .step {
+  position: relative;
+  padding-left: 26px;
+}
+
+.step + .step::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 1px;
+  background: var(--ambot-line);
+}
+
+.stepDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cfdcd6;
+  transition:
+    background 320ms ease,
+    box-shadow 320ms ease,
+    scale 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stepActive {
+  color: var(--ambot-dark);
+}
+
+.stepActive .stepDot {
+  background: var(--ambot-primary);
+  box-shadow: 0 0 0 4px rgba(22, 199, 132, 0.16);
+  scale: 1.15;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1024px) {
+  .stage {
+    aspect-ratio: 1.34;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero {
+    gap: 16px;
+    padding: 22px 20px 18px;
+  }
+  .stage {
+    max-height: 46vh;
+  }
+  .steps {
+    gap: 16px;
+    max-width: none;
+  }
+  .step + .step {
+    padding-left: 18px;
+  }
+  .step + .step::before {
+    width: 12px;
+  }
+  .step {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (max-width: 640px) {
+  .stage {
+    aspect-ratio: 1.24;
+  }
+}

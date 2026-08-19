@@ -1,0 +1,104 @@
+- generic [ref=f4e2]:
+  - main [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - paragraph [ref=f4e5]: "An illustration of the Ambot365 workflow: customer conversations arrive from WhatsApp, Instagram, Messenger and web chat, WebChatBot answers and resolves them automatically, and Ambot365 CRM records the result while revenue rises."
+      - generic [ref=f4e6]:
+        - generic:
+          - article:
+            - generic:
+              - text: WhatsApp
+              - generic: "2"
+            - generic:
+              - generic: JD
+              - generic:
+                - strong: John Doe
+                - generic: Hi, I need help with my order
+          - article:
+            - generic:
+              - text: Instagram
+              - generic: "1"
+            - generic:
+              - generic: SW
+              - generic:
+                - strong: Sarah Williams
+                - generic: Can you share the pricing?
+          - article:
+            - generic:
+              - text: Messenger
+              - generic: "3"
+            - generic:
+              - generic: DM
+              - generic:
+                - strong: David Miller
+                - generic: I need support with my account
+          - article:
+            - generic:
+              - text: Web Chat
+              - generic: "1"
+            - generic:
+              - generic: PN
+              - generic:
+                - strong: Priya Nair
+                - generic: Can I get an update?
+        - generic:
+          - generic:
+            - generic:
+              - strong: WebChatBot
+              - generic: Capturing conversation
+        - generic:
+          - generic:
+            - generic: Ambot365 CRM
+            - generic: Today
+          - generic:
+            - generic:
+              - generic: Total chats
+              - generic: 1,244
+            - generic:
+              - generic: Open
+              - generic: "366"
+            - generic:
+              - generic: Resolved
+              - generic: "878"
+          - generic:
+            - generic:
+              - generic: Revenue this month
+              - generic: ₹2,18,400
+          - generic:
+            - generic:
+              - generic: Recent conversations
+              - generic: 0 new
+            - list:
+              - listitem: Waiting for conversations
+      - list [ref=f4e7]:
+        - listitem [ref=f4e8]: Capture
+        - listitem [ref=f4e10]: Resolve
+        - listitem [ref=f4e12]: Record
+    - generic [ref=f4e15]:
+      - generic [ref=f4e21]:
+        - strong [ref=f4e22]: Ambot365
+        - generic [ref=f4e23]: CRM Automation Services
+      - generic [ref=f4e24]:
+        - heading "Welcome Back!" [level=1] [ref=f4e25]
+        - paragraph [ref=f4e26]: Login to manage your conversations, customers and grow your business.
+      - generic [ref=f4e27]:
+        - generic [ref=f4e28]:
+          - generic [ref=f4e29]: Email Address
+          - textbox "Email Address" [ref=f4e35]:
+            - /placeholder: you@company.com
+        - generic [ref=f4e36]:
+          - generic [ref=f4e37]: Password
+          - generic [ref=f4e39]:
+            - textbox "Password" [ref=f4e44]:
+              - /placeholder: Your password
+            - button "Show password" [ref=f4e45] [cursor=pointer]
+        - button "Forgot Password?" [ref=f4e50] [cursor=pointer]
+        - button "Login" [ref=f4e51] [cursor=pointer]
+      - generic [ref=f4e52]: or continue with
+      - generic [ref=f4e54]:
+        - button "Login with Google" [ref=f4e55] [cursor=pointer]
+        - button "Login with Microsoft" [ref=f4e61] [cursor=pointer]
+      - paragraph [ref=f4e67]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=f4e68] [cursor=pointer]:
+          - /url: /register
+  - status

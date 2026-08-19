@@ -1,0 +1,122 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card {
+  --land: 0;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(122px, 10vw, 158px);
+  padding: 9px 10px 10px;
+  border: 1px solid var(--ambot-line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.94);
+  /* The landing highlight is the only thing that fires on arrival: a brief
+     lift in the shadow, not a flash. */
+  box-shadow:
+    0 1px 2px rgba(23, 35, 31, 0.05),
+    0 calc(6px + var(--land) * 8px) calc(18px + var(--land) * 16px)
+      rgba(23, 35, 31, calc(0.08 + var(--land) * 0.06)),
+    0 0 0 calc(var(--land) * 2px) rgba(22, 199, 132, calc(var(--land) * 0.28));
+  backdrop-filter: blur(6px);
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ambot-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.channelIcon {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--tint);
+}
+
+.badge {
+  margin-left: auto;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ambot-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 17px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.avatar {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #d9f5e9, #b7ecd6);
+  color: #0f6c48;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.text {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.text strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ambot-dark);
+  letter-spacing: -0.01em;
+}
+
+.text span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--ambot-muted);
+}
+
+@media (max-width: 640px) {
+  .card {
+    width: 152px;
+    padding: 7px 8px 8px;
+    border-radius: 11px;
+  }
+  .avatar {
+    flex-basis: 24px;
+    width: 24px;
+    height: 24px;
+  }
+}

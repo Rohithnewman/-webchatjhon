@@ -1,0 +1,240 @@
+/**
+ * The login panel.
+ *
+ * The shared UI kit is reused as-is; the Ambot identity reaches it by
+ * overriding the brand tokens on this scope. That is deliberate — a second set
+ * of buttons and inputs styled "just for login" is exactly how a design system
+ * starts to drift.
+ */
+
+.panel {
+  --color-brand: var(--ambot-primary);
+  --color-brand-hover: #0fa96d;
+  --color-brand-soft: #e3f8ee;
+  --color-ink: var(--ambot-dark);
+  --color-ink-muted: var(--ambot-muted);
+  --color-border: rgba(23, 35, 31, 0.13);
+  --color-border-strong: rgba(23, 35, 31, 0.22);
+  --focus-ring: 0 0 0 3px rgba(22, 199, 132, 0.2);
+  --focus-outline: 3px solid rgba(22, 199, 132, 0.34);
+  --radius-md: 10px;
+
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: clamp(24px, 4vw, 56px) clamp(20px, 4vw, 60px);
+  background: var(--ambot-white);
+  box-shadow: -1px 0 0 var(--ambot-line);
+}
+
+.inner {
+  width: min(100%, 388px);
+}
+
+/* ── Logo ─────────────────────────────────────────────────────────────── */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.logoMark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(150deg, #eafff7, #d5f6e9);
+  box-shadow: 0 4px 12px rgba(22, 199, 132, 0.22);
+}
+
+.logoMark svg {
+  width: 26px;
+  height: 26px;
+}
+
+.logoText {
+  display: grid;
+  gap: 1px;
+}
+
+.logoText strong {
+  font-size: 17px;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+  color: var(--ambot-dark);
+}
+
+.logoText small {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ambot-muted);
+}
+
+/* ── Heading ──────────────────────────────────────────────────────────── */
+
+.heading {
+  margin: 34px 0 26px;
+}
+
+.heading h1 {
+  font-size: clamp(28px, 3.2vw, 34px);
+  font-weight: 780;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: var(--ambot-dark);
+}
+
+.heading p {
+  margin-top: 10px;
+  max-width: 34ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ambot-muted);
+}
+
+/* ── Form ─────────────────────────────────────────────────────────────── */
+
+.form {
+  display: grid;
+  gap: 15px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+
+.textLink {
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: var(--ambot-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.textLink:hover {
+  text-decoration: underline;
+}
+
+.error {
+  padding: 9px 11px;
+  border-left: 3px solid var(--color-danger);
+  border-radius: 0 6px 6px 0;
+  background: #fff2f0;
+  color: var(--color-danger-ink);
+  font-size: 12.5px;
+}
+
+/* ── Social ───────────────────────────────────────────────────────────── */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 14px;
+  color: var(--ambot-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ambot-line);
+}
+
+.social {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.socialButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--ambot-white);
+  color: var(--ambot-dark);
+  font-size: 12.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.socialButton:hover {
+  border-color: var(--color-border-strong);
+  background: #f8fbf9;
+  transform: translateY(-1px);
+}
+
+.notice {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(22, 199, 132, 0.24);
+  border-radius: 8px;
+  background: #f1fdf7;
+  color: #0e6b47;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.signup {
+  margin-top: 26px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ambot-muted);
+}
+
+.signup a {
+  color: var(--ambot-primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.signup a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .panel {
+    box-shadow: none;
+    border-top: 1px solid var(--ambot-line);
+    border-radius: 22px 22px 0 0;
+    padding: 28px 22px 40px;
+  }
+  .heading {
+    margin: 26px 0 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .social {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .socialButton:hover {
+    transform: none;
+  }
+}

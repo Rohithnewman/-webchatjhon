@@ -1,0 +1,30 @@
+/**
+ * Desktop: story on the left, login on the right.
+ * Below 900px the two stack, story first — the animation is what explains the
+ * product, so it should not be the thing that gets cut.
+ */
+
+.shell {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.34fr) minmax(374px, 0.66fr);
+  overflow-x: hidden;
+  background: var(--ambot-bg);
+  color: var(--ambot-dark);
+}
+
+@media (max-width: 1180px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.92fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}

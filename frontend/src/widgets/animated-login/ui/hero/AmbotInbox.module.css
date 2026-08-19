@@ -1,0 +1,439 @@
+/**
+ * The Ambot365 Inbox replica.
+ *
+ * These colours are the product's own — blue links, red badges, Google-grey
+ * chrome — not the login's green. That is deliberate: this panel is a picture
+ * of the real application, and repainting it in the marketing palette would
+ * make it a generic dashboard again.
+ *
+ * The frame is authored at its natural size and scaled to fit the stage, so the
+ * proportions of the real screen survive at any viewport.
+ */
+
+.root {
+  --reset: 0;
+
+  position: absolute;
+  left: 46%;
+  top: 26%;
+  width: 54%;
+  max-width: 588px;
+  aspect-ratio: 470 / 296;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(23, 35, 31, 0.06),
+    0 20px 48px rgba(23, 35, 31, 0.14);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: calc(1 - var(--reset) * 0.24);
+}
+
+.frame {
+  height: 296px;
+  transform-origin: top left;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  font-size: 9px;
+  color: #202124;
+  letter-spacing: 0;
+}
+
+/* ── Rail ─────────────────────────────────────────────────────────────── */
+
+.rail {
+  border-right: 1px solid #e8eaed;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #e8f5ee, #d3efe1);
+  position: relative;
+}
+
+.logo::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  background: linear-gradient(150deg, #1dffb2, #12a06a);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  gap: 2px;
+}
+
+.navItem,
+.navActive {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 5px 2px;
+  color: #3c4043;
+  font-size: 7.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.navActive {
+  background: #e8f0fe;
+  color: #1a73e8;
+  box-shadow: inset 2px 0 0 #1a73e8;
+}
+
+/* ── Main ─────────────────────────────────────────────────────────────── */
+
+.main {
+  min-width: 0;
+  padding: 9px 10px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #202124;
+}
+
+.tabs {
+  display: flex;
+  gap: 14px;
+  margin-top: 7px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.tab,
+.tabActive {
+  font-size: 10px;
+  font-weight: 600;
+  color: #3c4043;
+  padding-bottom: 4px;
+  margin-bottom: -6px;
+}
+
+.tabActive {
+  color: #1a73e8;
+  border-bottom: 2px solid #1a73e8;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 0;
+}
+
+.toolButton {
+  width: 22px;
+  height: 20px;
+  border-radius: 6px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  display: grid;
+  place-items: center;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  margin: 0 4px;
+  padding: 0 8px;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #80868b;
+  font-size: 8.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.toolGhost {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #f1f3f4;
+  color: #bdc1c6;
+  display: grid;
+  place-items: center;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+
+.table {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.thead,
+.row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 112px) 54px 64px 34px 44px 34px;
+  gap: 4px;
+  align-items: center;
+}
+
+.thead {
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 4px 4px 0 0;
+  background: #f8f9fa;
+  font-size: 8px;
+  font-weight: 700;
+  color: #202124;
+}
+
+.thead > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.row {
+  height: 33px;
+  padding: 0 4px;
+  border-bottom: 1px solid #eceff1;
+}
+
+/* A conversation the bot just closed slides in at the top, lit for a moment so
+   the arrival is impossible to miss, then settles into the list. */
+.rowFresh {
+  animation:
+    rowIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    rowLit 1600ms ease-out both;
+}
+
+.check {
+  width: 9px;
+  height: 9px;
+  border: 1px solid #9aa0a6;
+  border-radius: 2px;
+}
+
+.visitor {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The workspace's contacts are Indian numbers and accounts; the avatar flag in
+   the real screen is part of that texture. */
+.avatar {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  position: relative;
+  background: linear-gradient(#ff9933 33.3%, #fff 33.3% 66.6%, #138808 66.6%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.avatar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3.4px;
+  height: 3.4px;
+  margin: -1.7px 0 0 -1.7px;
+  border-radius: 50%;
+  border: 0.8px solid #1a4fa0;
+}
+
+.visitorText {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.visitorTop {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.visitorTop strong {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.countChip {
+  flex: 0 0 auto;
+  min-width: 11px;
+  padding: 0 2px;
+  border: 1px solid #dadce0;
+  border-radius: 3px;
+  color: #3c4043;
+  font-size: 7px;
+  line-height: 10px;
+  text-align: center;
+}
+
+.channel {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--tint, #1a73e8);
+}
+
+.unread {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 9px;
+  height: 9px;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: #ea4335;
+  color: #fff;
+  font-size: 6.5px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 9px;
+  text-align: center;
+}
+
+.stamp {
+  font-size: 7px;
+  color: #5f6368;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #202124;
+}
+
+.link {
+  color: #1a73e8;
+}
+
+.aiCell {
+  display: grid;
+  place-items: center;
+}
+
+.ai {
+  width: 20px;
+  height: 16px;
+  border-radius: 5px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  display: grid;
+  place-items: center;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: #1a73e8;
+  font-size: 8.5px;
+  font-weight: 600;
+}
+
+.statusDone {
+  color: #16a34a;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #5f6368;
+}
+
+.actions > :first-child {
+  color: #c5221f;
+}
+
+/* ── Period rollover ──────────────────────────────────────────────────── */
+
+.sweep {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 45%,
+    rgba(29, 255, 178, 0.14) 62%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: calc(var(--reset) * (1 - var(--reset)) * 4);
+  transform: translateX(calc(-60% + var(--reset) * 300%));
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rowLit {
+  0% {
+    background: rgba(22, 199, 132, 0.22);
+  }
+  100% {
+    background: rgba(22, 199, 132, 0);
+  }
+}
+
+@media (max-width: 900px) {
+  .root {
+    left: 44%;
+    top: 24%;
+    width: 56%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowFresh {
+    animation: none;
+  }
+}

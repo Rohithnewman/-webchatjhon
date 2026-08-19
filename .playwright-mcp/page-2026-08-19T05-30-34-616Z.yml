@@ -1,0 +1,163 @@
+- generic [ref=f10e2]:
+  - main [ref=f10e3]:
+    - generic [ref=f10e4]:
+      - paragraph [ref=f10e5]: "An illustration of the Ambot365 workflow: customer conversations arrive from WhatsApp, Instagram, Messenger and web chat, WebChatBot answers and resolves them automatically, and Ambot365 records each resolved conversation in the shared inbox."
+      - generic [ref=f10e6]:
+        - generic:
+          - generic:
+            - generic:
+              - strong: WebChatBot
+              - generic: Processing conversation
+        - generic:
+          - generic:
+            - complementary:
+              - list:
+                - listitem:
+                  - generic: Home
+                - listitem:
+                  - generic: Chatbot
+                - listitem:
+                  - generic: Inbox
+                - listitem:
+                  - generic: Analytics
+                - listitem:
+                  - generic: Subscriptions
+                - listitem:
+                  - generic: Partner
+                - listitem:
+                  - generic: More
+            - generic:
+              - heading [level=3]: Inbox
+              - navigation:
+                - generic: Chats
+                - generic: Appointments
+                - generic: Contacts
+                - generic: Groups
+              - generic: Type name, email or phone, and press enter
+              - generic:
+                - generic:
+                  - generic: Visitor Name
+                  - generic: Email
+                  - generic: Phone Number
+                  - generic: AI Summary
+                  - generic: Status
+                  - generic: Actions
+                - list:
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Priya Nair
+                          - generic: "1"
+                          - generic: "1"
+                        - generic: Today 11:35 AM
+                    - generic: priya.nair@lum...
+                    - generic: +91 90000 30012
+                    - generic: Resolved
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: David Miller
+                          - generic: "1"
+                          - generic: "3"
+                        - generic: Today 11:38 AM
+                    - generic: NA
+                    - generic: +91 90000 04411
+                    - generic: Resolved
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Sarah Williams
+                          - generic: "1"
+                          - generic: "1"
+                        - generic: Today 11:40 AM
+                    - generic: sarah.w@brightl...
+                    - generic: NA
+                    - generic: Resolved
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: John Doe
+                          - generic: "1"
+                          - generic: "2"
+                        - generic: Today 11:42 AM
+                    - generic: john.doe@vertex...
+                    - generic: +91 90000 12233
+                    - generic: Resolved
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Ananya Rao
+                          - generic: "1"
+                        - generic: Aug 1, 2026 9:54 AM
+                    - generic: ananya.rao@lum...
+                    - generic: +91 90000 41188
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Marcus Lee
+                          - generic: "1"
+                        - generic: Jul 31, 2026 10:21 PM
+                    - generic: m.lee@northwin...
+                    - generic: NA
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Fatima Sheikh
+                          - generic: "1"
+                          - generic: "5"
+                        - generic: Jul 31, 2026 9:06 PM
+                    - generic: fatima@brightla...
+                    - generic: +91 90000 77410
+                    - generic: Open
+                  - listitem:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - strong: Rahul Menon
+                          - generic: "1"
+                        - generic: Jul 31, 2026 6:00 PM
+                    - generic: NA
+                    - generic: NA
+                    - generic: Open
+      - list [ref=f10e7]:
+        - listitem [ref=f10e8]: Capture
+        - listitem [ref=f10e10]: Resolve
+        - listitem [ref=f10e12]: Record
+    - generic [ref=f10e15]:
+      - generic [ref=f10e21]:
+        - strong [ref=f10e22]: Ambot365
+        - generic [ref=f10e23]: CRM Automation Services
+      - generic [ref=f10e24]:
+        - heading "Welcome Back!" [level=1] [ref=f10e25]
+        - paragraph [ref=f10e26]: Login to manage your conversations, customers and grow your business.
+      - generic [ref=f10e27]:
+        - generic [ref=f10e28]:
+          - generic [ref=f10e29]: Email Address
+          - textbox "Email Address" [ref=f10e35]:
+            - /placeholder: you@company.com
+        - generic [ref=f10e36]:
+          - generic [ref=f10e37]: Password
+          - generic [ref=f10e39]:
+            - textbox "Password" [ref=f10e44]:
+              - /placeholder: Your password
+            - button "Show password" [ref=f10e45] [cursor=pointer]
+        - button "Forgot Password?" [ref=f10e50] [cursor=pointer]
+        - button "Login" [ref=f10e51] [cursor=pointer]
+      - generic [ref=f10e52]: or continue with
+      - generic [ref=f10e54]:
+        - button "Login with Google" [ref=f10e55] [cursor=pointer]
+        - button "Login with Microsoft" [ref=f10e61] [cursor=pointer]
+      - paragraph [ref=f10e67]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=f10e68] [cursor=pointer]:
+          - /url: /register
+  - status

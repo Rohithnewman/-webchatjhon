@@ -1,0 +1,59 @@
+/**
+ * The character's own palette. Kept local because these are illustration
+ * values (skin, hair, upholstery) rather than product tokens — nothing outside
+ * this rig should ever reference them.
+ */
+
+.root {
+  --skin: #eab992;
+  --skin-shade: #d9a37a;
+  --hair: #26332d;
+  --ink: #17231f;
+  --shirt: #2f4a40;
+  --shirt-dark: #263c34;
+  --shirt-light: #f2f7f4;
+  --chair: #cddbd4;
+  --desk-edge: #cfded7;
+  --laptop-deck: #dfeae5;
+  --laptop-line: #a9beb5;
+  --laptop-lid: #3a4c45;
+
+  position: absolute;
+  left: -2%;
+  bottom: -2%;
+  width: 46%;
+  max-width: 440px;
+  pointer-events: none;
+}
+
+.rig {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* One promoted layer for the whole rig: the joints animate inside it, so the
+     compositor never has to re-promote per limb. */
+  will-change: transform;
+}
+
+/**
+ * Slot for a supplied frame sequence. Sized to the same box as the vector rig
+ * so swapping renderers does not move the character.
+ */
+.sprite {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.sprite ~ .rig {
+  /* A supplied sheet replaces the rig rather than drawing over it. */
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .root {
+    width: 58%;
+  }
+}

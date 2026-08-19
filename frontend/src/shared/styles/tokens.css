@@ -27,6 +27,21 @@
   --color-brand-soft: #e5f3eb;
   --color-brand-deep: #153c2b;
 
+  /* ---- Ambot365 brand --------------------------------------------------
+   * The public-facing identity: the marketing site, the login, anything a
+   * customer sees before they are signed in. Inside the builder the
+   * desaturated palette above still rules — an operational tool is not the
+   * place for brand green.
+   */
+  --ambot-primary: #16c784;
+  --ambot-bright: #1dffb2;
+  --ambot-dark: #17231f;
+  --ambot-bg: #f5faf8;
+  --ambot-white: #ffffff;
+  --ambot-muted: #71817b;
+  --ambot-line: rgba(23, 35, 31, 0.09);
+  --ambot-glass: rgba(255, 255, 255, 0.72);
+
   /* ---- Status ---------------------------------------------------------- */
   --color-danger: #ad352f;
   --color-danger-soft: #fff6f5;
