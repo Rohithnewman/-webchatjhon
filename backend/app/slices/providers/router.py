@@ -7,6 +7,7 @@ from app.core.database import get_session
 from app.core.envelope import success
 from app.shared import permissions
 from app.shared.context import WorkspaceContext
+from app.slices.audit import api as audit_api
 from app.slices.authz import api as authz_api
 from app.slices.providers import api as providers_api
 from app.slices.providers.schemas import CredentialCreate, CredentialOut
@@ -52,6 +53,15 @@ async def create_credential(
         base_url=body.base_url,
         make_default=body.make_default,
     )
+    await audit_api.record(
+        session,
+        action=audit_api.actions.CREDENTIAL_STORED,
+        workspace_id=ctx.workspace_id,
+        actor_id=ctx.user_id,
+        target_type="provider_credential",
+        target_id=str(view.id),
+        metadata={"provider": view.provider, "label": view.label},
+    )
     await session.commit()
     return success(_serialize(view))
 
@@ -69,5 +79,13 @@ async def delete_credential(
         from app.core.errors import AppError
 
         raise AppError(code="NOT_FOUND", message="Credential not found", status_code=404)
+    await audit_api.record(
+        session,
+        action=audit_api.actions.CREDENTIAL_DELETED,
+        workspace_id=ctx.workspace_id,
+        actor_id=ctx.user_id,
+        target_type="provider_credential",
+        target_id=str(credential_id),
+    )
     await session.commit()
     return success({"deleted": True})

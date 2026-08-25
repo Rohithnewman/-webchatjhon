@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.slices.knowledge.models import Document, DocumentChunk, KnowledgeBase
 
@@ -10,11 +10,33 @@ async def create_base(session: AsyncSession, *, workspace_id: uuid.UUID, name: s
 
 
 async def list_bases(session: AsyncSession, *, workspace_id: uuid.UUID) -> list[KnowledgeBase]:
-    return list((await session.execute(select(KnowledgeBase).where(KnowledgeBase.workspace_id == workspace_id).order_by(KnowledgeBase.created_at))).scalars().all())
+    return list((await session.execute(select(KnowledgeBase).where(KnowledgeBase.workspace_id == workspace_id, KnowledgeBase.deleted_at.is_(None)).order_by(KnowledgeBase.created_at))).scalars().all())
 
 
 async def get_base(session: AsyncSession, *, workspace_id: uuid.UUID, base_id: uuid.UUID) -> KnowledgeBase | None:
-    return (await session.execute(select(KnowledgeBase).where(KnowledgeBase.id == base_id, KnowledgeBase.workspace_id == workspace_id))).scalar_one_or_none()
+    return (await session.execute(select(KnowledgeBase).where(KnowledgeBase.id == base_id, KnowledgeBase.workspace_id == workspace_id, KnowledgeBase.deleted_at.is_(None)))).scalar_one_or_none()
+
+
+async def update_base(session: AsyncSession, *, base: KnowledgeBase, changes: dict) -> KnowledgeBase:
+    for field, value in changes.items():
+        setattr(base, field, value)
+    await session.flush()
+    return base
+
+
+async def soft_delete_base(session: AsyncSession, *, base: KnowledgeBase) -> None:
+    """Soft-delete the base and its documents; chunks go with their documents."""
+    now = func.clock_timestamp()
+    base.deleted_at = now
+    await session.execute(update(Document).where(Document.knowledge_base_id == base.id, Document.deleted_at.is_(None)).values(deleted_at=now))
+    await session.execute(delete(DocumentChunk).where(DocumentChunk.knowledge_base_id == base.id))
+    await session.flush()
+
+
+async def soft_delete_document(session: AsyncSession, *, document: Document) -> None:
+    document.deleted_at = func.clock_timestamp()
+    await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
+    await session.flush()
 
 
 async def create_document(session: AsyncSession, **values) -> Document:
@@ -22,11 +44,11 @@ async def create_document(session: AsyncSession, **values) -> Document:
 
 
 async def list_documents(session: AsyncSession, *, workspace_id: uuid.UUID, base_id: uuid.UUID) -> list[Document]:
-    return list((await session.execute(select(Document).where(Document.workspace_id == workspace_id, Document.knowledge_base_id == base_id).order_by(Document.created_at.desc()))).scalars().all())
+    return list((await session.execute(select(Document).where(Document.workspace_id == workspace_id, Document.knowledge_base_id == base_id, Document.deleted_at.is_(None)).order_by(Document.created_at.desc()))).scalars().all())
 
 
 async def get_document(session: AsyncSession, *, workspace_id: uuid.UUID, document_id: uuid.UUID) -> Document | None:
-    return (await session.execute(select(Document).where(Document.id == document_id, Document.workspace_id == workspace_id))).scalar_one_or_none()
+    return (await session.execute(select(Document).where(Document.id == document_id, Document.workspace_id == workspace_id, Document.deleted_at.is_(None)))).scalar_one_or_none()
 
 
 async def replace_chunks(session: AsyncSession, *, document: Document, chunks: list[dict]) -> None:
