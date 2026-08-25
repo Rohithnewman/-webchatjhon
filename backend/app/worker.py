@@ -32,10 +32,6 @@ JobHandler = Callable[[AsyncSession, JobView], Awaitable[None]]
 #: Handlers register here at import time, keyed by job kind.
 HANDLERS: Final[dict[str, JobHandler]] = {}
 
-# Import handlers for registration. Kept here so `python -m app.worker` and
-# tests share the exact same dispatch table.
-from app.slices.knowledge import worker as _knowledge_worker  # noqa: E402,F401
-
 POLL_INTERVAL_SECONDS: Final = 2.0
 RECLAIM_EVERY_SECONDS: Final = 60.0
 
@@ -50,6 +46,12 @@ def register(kind: str) -> Callable[[JobHandler], JobHandler]:
         return handler
 
     return decorator
+
+
+# Import handlers for registration — after `register` exists, because handler
+# modules import it back. Kept here so `python -m app.worker` and tests share
+# the exact same dispatch table.
+from app.slices.knowledge import worker as _knowledge_worker  # noqa: E402,F401
 
 
 async def run_one(session: AsyncSession, *, worker_id: str) -> bool:

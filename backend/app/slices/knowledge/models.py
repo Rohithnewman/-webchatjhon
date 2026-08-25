@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSONB, UUID 
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.shared.mixins import TimestampMixin, uuid_pk
+from app.shared.mixins import CreatedAtMixin, TimestampMixin, uuid_pk
 
 
 class KnowledgeBase(TimestampMixin, Base):
@@ -34,7 +34,7 @@ class Document(TimestampMixin, Base):
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
 
-class DocumentChunk(Base):
+class DocumentChunk(CreatedAtMixin, Base):
     __tablename__ = "document_chunks"
     __table_args__ = (Index("uq_document_chunk_ordinal", "document_id", "ordinal", unique=True),)
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -45,4 +45,3 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(ARRAY(DOUBLE_PRECISION), nullable=False)
-    created_at: Mapped[object] = mapped_column(server_default=text("clock_timestamp()"), nullable=False)

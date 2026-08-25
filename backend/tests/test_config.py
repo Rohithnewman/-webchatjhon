@@ -48,4 +48,9 @@ def test_production_rejects_a_short_jwt_secret():
 
 def test_production_accepts_a_real_jwt_secret():
     secret = "a-real-production-secret-with-32-bytes"
-    assert Settings(ENVIRONMENT="production", JWT_SECRET=secret).JWT_SECRET == secret
+    settings = Settings(
+        ENVIRONMENT="production",
+        JWT_SECRET=secret,
+        ENCRYPTION_KEY="c29tZS1yZWFsLXByb2R1Y3Rpb24tZmVybmV0LWtleSE=",
+    )
+    assert settings.JWT_SECRET == secret
