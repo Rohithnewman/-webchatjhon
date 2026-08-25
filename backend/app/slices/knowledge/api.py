@@ -12,3 +12,11 @@ def local_embedding(text: str, dimensions: int = 32) -> list[float]:
     for index, token in enumerate(text.lower().split()):
         values[hash(token) % dimensions] += 1.0 / (index + 1)
     return values
+
+
+async def search(session, *, workspace_id: uuid.UUID, knowledge_base_id: uuid.UUID, query: str, limit: int = 5) -> list[dict]:
+    """Retrieval seam for other slices (spec §7). Raises NOT_FOUND for a base
+    outside the workspace, so callers cannot probe across tenants."""
+    base = await require_base(session, workspace_id, knowledge_base_id)
+    rows = await repository.search_chunks(session, workspace_id=workspace_id, base_id=base.id, embedding=local_embedding(query, base.embedding_dimensions), limit=limit)
+    return [{"content": row.content, "score": score, "document_id": str(row.document_id)} for row, score in rows]

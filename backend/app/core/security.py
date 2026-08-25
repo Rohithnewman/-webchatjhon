@@ -70,6 +70,21 @@ def create_refresh_token(
     )
 
 
+def create_widget_token(*, conversation_id: str, workspace_id: str) -> str:
+    """Session token for the public chat widget.
+
+    Scoped to a single conversation — it authorizes nothing else. 24 hours
+    covers any realistic visitor session without leaving a durable credential
+    in the visitor's browser.
+    """
+    token, _ = _encode(
+        {"conversation_id": conversation_id, "workspace_id": workspace_id},
+        token_type="widget",
+        lifetime=timedelta(hours=24),
+    )
+    return token
+
+
 def decode_token(token: str, *, expected_type: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(

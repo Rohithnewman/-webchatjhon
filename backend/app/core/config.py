@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # deployment state, not a per-release value.
     ENCRYPTION_KEY: str = _DEV_ENCRYPTION_KEY
 
+    # The embeddable widget runs on arbitrary customer origins, so its routes
+    # must be reachable cross-origin. Safe with bearer-token auth: no request
+    # is cookie-authenticated, so echoing the Origin grants nothing by itself.
+    WIDGET_CORS_ALL_ORIGINS: bool = True
+
     LOGIN_MAX_FAILURES: int = 5
     LOCKOUT_MINUTES: int = 15
     RATE_LIMIT_PER_MINUTE: int = 20
