@@ -1,5 +1,19 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Maximize2,
+  Minimize2,
+  Play,
+  Plus,
+  Redo2,
+  Rocket,
+  Search,
+  Trash2,
+  Undo2,
+  Workflow,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -7,19 +21,23 @@ import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
 import { useAuthStore } from "../../features/auth/model/auth-store";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
-import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
+import { ClassicBuilder } from "../../features/classic-builder/ClassicBuilder";
+import {
+  ComponentLibraryModal,
+  type ComponentItemDef,
+} from "../../features/component-library/ComponentLibraryModal";
 import {
   downloadFlowDocument,
   readFlowDocument,
 } from "../../features/flow-editor/lib/flow-document";
 import { useFlowGraph } from "../../features/flow-editor/model/use-flow-graph";
 import { ConfigPanel } from "../../features/flow-editor/ui/ConfigPanel";
-import { NodePalette } from "../../features/flow-editor/ui/NodePalette";
+import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import { ApiError } from "../../shared/api/client";
 import { useToast } from "../../shared/ui";
-import { BuilderTopbar } from "../../widgets/builder-topbar/BuilderTopbar";
-import { ChatbotSidebar } from "../../widgets/chatbot-sidebar/ChatbotSidebar";
 import { FlowCanvas } from "../../widgets/flow-canvas/FlowCanvas";
+import { ChatbotSubNav } from "../../widgets/navigation/ChatbotSubNav";
+import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
 
 function BuilderWorkspace() {
   const { chatbotId } = useParams();
@@ -29,10 +47,13 @@ function BuilderWorkspace() {
   const logout = useAuthStore((state) => state.logout);
   const graph = useFlowGraph();
 
+  // Mode: "classic" or "visual"
+  const [builderMode, setBuilderMode] = useState<"classic" | "visual">("classic");
+
   const [panelTab, setPanelTab] = useState<"config" | "history">("config");
   const [createOpen, setCreateOpen] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  const [compModalOpen, setCompModalOpen] = useState(false);
 
   const chatbotsQuery = useQuery({ queryKey: ["chatbots"], queryFn: chatbotApi.list });
   const selectedId = chatbotId ?? chatbotsQuery.data?.[0]?.id;
@@ -43,6 +64,7 @@ function BuilderWorkspace() {
     queryFn: () => chatbotApi.flow(selectedId!),
     enabled: Boolean(selectedId),
   });
+
   const versionsQuery = useQuery({
     queryKey: ["versions", selectedId],
     queryFn: () => chatbotApi.versions(selectedId!),
@@ -55,8 +77,6 @@ function BuilderWorkspace() {
 
   useEffect(() => {
     if (flowQuery.data) graph.load(flowQuery.data.definition);
-    // `graph.load` is stable; re-running on graph identity would clobber edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flowQuery.data]);
 
   const notifyError = (error: unknown) =>
@@ -74,134 +94,165 @@ function BuilderWorkspace() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (document_: FlowDocument) => chatbotApi.saveFlow(selectedId!, document_),
+    mutationFn: (doc: FlowDocument) => chatbotApi.saveFlow(selectedId!, doc),
     onSuccess: async (flow) => {
-      queryClient.setQueryData(["flow", selectedId], flow);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["versions", selectedId] }),
-        queryClient.invalidateQueries({ queryKey: ["chatbots"] }),
-      ]);
       graph.markSaved();
-      toast.success(`Saved version ${flow.version}`);
-    },
-    onError: notifyError,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (input: { status?: "draft" | "published" }) =>
-      chatbotApi.update(selectedId!, input),
-    onSuccess: async (chatbot) => {
-      await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
-      toast.success(chatbot.status === "published" ? "Published" : "Moved to draft");
-    },
-    onError: notifyError,
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (version: number) => chatbotApi.restore(selectedId!, version),
-    onSuccess: async (flow) => {
-      queryClient.setQueryData(["flow", selectedId], flow);
+      await queryClient.invalidateQueries({ queryKey: ["flow", selectedId] });
       await queryClient.invalidateQueries({ queryKey: ["versions", selectedId] });
-      toast.success(`Restored as version ${flow.version}`);
-    },
-    onError: notifyError,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => chatbotApi.remove(selectedId!),
-    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
-      navigate("/builder");
-      toast.success("Chatbot deleted");
+      toast.success(`Saved flow v${flow.version}`);
     },
     onError: notifyError,
   });
 
-  async function importFlow(file: File) {
-    try {
-      graph.replace(await readFlowDocument(file));
-      toast.success("Flow imported");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "That file isn't a valid flow");
-    }
-  }
+  const handleAddFromLibrary = (comp: ComponentItemDef) => {
+    graph.addNode(comp.nodeType as any);
+  };
 
-  const loading = chatbotsQuery.isLoading || (Boolean(selectedId) && flowQuery.isLoading);
+  const currentSnapshot = graph.snapshot();
+  const botTitle = selectedChatbot?.name ?? "AmBot";
 
   return (
-    <main className="builder-shell">
-      <BuilderTopbar
-        chatbot={selectedChatbot}
-        dirty={graph.dirty}
-        saving={saveMutation.isPending}
-        publishing={updateMutation.isPending}
-        onToggleNav={() => setNavOpen((open) => !open)}
-        onSave={() => saveMutation.mutate(graph.snapshot())}
-        onTogglePublished={() =>
-          updateMutation.mutate({
-            status: selectedChatbot?.status === "published" ? "draft" : "published",
-          })
-        }
-        onExport={() =>
-          downloadFlowDocument(graph.snapshot(), selectedChatbot?.name ?? "flow")
-        }
-        onImport={(file) => void importFlow(file)}
-        onOpenEmbed={() => setEmbedOpen(true)}
+    <div className="ambot-dashboard-shell">
+      <PrimaryNav />
+      <ChatbotSubNav
+        chatbots={chatbotsQuery.data ?? []}
+        selectedChatbot={selectedChatbot}
+        onSelectChatbot={(id) => navigate(`/builder/${id}`)}
+        onCreateNewBot={() => setCreateOpen(true)}
       />
 
-      <div className="builder-layout">
-        <ChatbotSidebar
-          chatbots={chatbotsQuery.data ?? []}
-          loading={chatbotsQuery.isLoading}
-          selectedId={selectedId}
-          open={navOpen}
-          onSelect={(id) => {
-            navigate(`/builder/${id}`);
-            setNavOpen(false);
-          }}
-          onCreate={() => setCreateOpen(true)}
-          onDelete={() => {
-            if (selectedChatbot && window.confirm(`Delete ${selectedChatbot.name}?`)) {
-              deleteMutation.mutate();
-            }
-          }}
-          onSignOut={async () => {
-            await logout();
-            navigate("/login", { replace: true });
-          }}
-        />
+      <main className="ambot-main-viewport">
+        {builderMode === "classic" ? (
+          // ── CLASSIC BUILDER (3-Column View) ──────────────────────────────────
+          <ClassicBuilder
+            flowDoc={currentSnapshot}
+            flowTitle={botTitle}
+            onUpdateFlow={(newDoc) => {
+              graph.load(newDoc);
+              saveMutation.mutate(newDoc);
+            }}
+            onSwitchToVisual={() => setBuilderMode("visual")}
+            onOpenTest={() => setEmbedOpen(true)}
+            onOpenInstall={() => navigate(`/chatbots/${selectedId}/install`)}
+          />
+        ) : (
+          // ── VISUAL FLOW BUILDER (Canvas View) ────────────────────────────────
+          <div className="visual-canvas-workspace">
+            {/* Visual Top Toolbar matching Screenshots */}
+            <header className="visual-top-controls">
+              <div className="canvas-tool-group">
+                <button
+                  type="button"
+                  className="canvas-tool-btn"
+                  title="Zoom In"
+                  onClick={() =>
+                    graph.setViewport({ ...graph.viewport, zoom: graph.viewport.zoom + 0.15 })
+                  }
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="canvas-tool-btn"
+                  title="Zoom Out"
+                  onClick={() =>
+                    graph.setViewport({ ...graph.viewport, zoom: Math.max(0.2, graph.viewport.zoom - 0.15) })
+                  }
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="canvas-tool-btn"
+                  title="Fit to view"
+                  onClick={() => graph.setViewport({ x: 0, y: 0, zoom: 1 })}
+                >
+                  <Maximize2 size={16} />
+                </button>
+              </div>
 
-        <NodePalette onAdd={graph.addNode} hasStart={graph.hasStart} />
+              <div className="canvas-actions-right">
+                <button
+                  type="button"
+                  className="btn-add-component-main"
+                  onClick={() => setCompModalOpen(true)}
+                >
+                  <Plus size={16} />
+                  <span>+ Add Component</span>
+                </button>
 
-        <FlowCanvas
-          nodes={graph.nodes}
-          edges={graph.edges}
-          viewport={graph.viewport}
-          dirty={graph.dirty}
-          loading={loading}
-          hasChatbot={Boolean(selectedId)}
-          onNodesChange={graph.onNodesChange}
-          onEdgesChange={graph.onEdgesChange}
-          onConnect={graph.onConnect}
-          onSelectNode={(id) => {
-            graph.setSelectedNodeId(id);
-            if (id) setPanelTab("config");
-          }}
-          onViewportChange={graph.setViewport}
-          onCreateChatbot={() => setCreateOpen(true)}
-        />
+                <button
+                  type="button"
+                  className="btn-switch-classic"
+                  onClick={() => setBuilderMode("classic")}
+                  title="Switch to Classic Builder"
+                >
+                  <Workflow size={15} />
+                  <span>Classic View</span>
+                </button>
 
-        <ConfigPanel
-          node={graph.selectedNode}
-          versions={versionsQuery.data ?? []}
-          activeTab={panelTab}
-          onTabChange={setPanelTab}
-          onChange={graph.updateSelectedNode}
-          onDelete={graph.deleteSelectedNode}
-          onRestore={(version) => restoreMutation.mutate(version)}
-          restoring={restoreMutation.isPending}
-        />
-      </div>
+                <button
+                  type="button"
+                  className="btn-canvas-test"
+                  onClick={() => setEmbedOpen(true)}
+                >
+                  <Play size={15} />
+                  <span>Test Bot</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-canvas-install"
+                  onClick={() => navigate(`/chatbots/${selectedId}/install`)}
+                >
+                  <Rocket size={15} />
+                  <span>Install</span>
+                </button>
+              </div>
+            </header>
+
+            <div className="visual-canvas-body">
+              <FlowCanvas
+                nodes={graph.nodes}
+                edges={graph.edges}
+                viewport={graph.viewport}
+                dirty={graph.dirty}
+                loading={flowQuery.isLoading}
+                hasChatbot={Boolean(selectedId)}
+                onNodesChange={graph.onNodesChange}
+                onEdgesChange={graph.onEdgesChange}
+                onConnect={graph.onConnect}
+                onSelectNode={(id) => {
+                  graph.setSelectedNodeId(id);
+                  if (id) setPanelTab("config");
+                }}
+                onViewportChange={graph.setViewport}
+                onCreateChatbot={() => setCreateOpen(true)}
+              />
+
+              {graph.selectedNode && (
+                <ConfigPanel
+                  node={graph.selectedNode}
+                  versions={versionsQuery.data ?? []}
+                  activeTab={panelTab}
+                  onTabChange={setPanelTab}
+                  onChange={graph.updateSelectedNode}
+                  onDelete={graph.deleteSelectedNode}
+                  onRestore={(version) => {}}
+                  restoring={false}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <ComponentLibraryModal
+        open={compModalOpen}
+        onClose={() => setCompModalOpen(false)}
+        onSelectComponent={handleAddFromLibrary}
+      />
 
       <CreateChatbotDialog
         open={createOpen}
@@ -217,7 +268,7 @@ function BuilderWorkspace() {
         chatbot={selectedChatbot}
         onClose={() => setEmbedOpen(false)}
       />
-    </main>
+    </div>
   );
 }
 

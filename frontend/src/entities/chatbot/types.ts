@@ -26,6 +26,7 @@ export interface FlowDocument {
   nodes: FlowNode[];
   edges: FlowEdge[];
   viewport: Viewport;
+  design?: Record<string, any>;
 }
 
 export interface Chatbot {

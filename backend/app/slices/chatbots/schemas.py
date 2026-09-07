@@ -51,6 +51,7 @@ class FlowDocument(BaseModel):
     nodes: list[FlowNode] = Field(min_length=1, max_length=250)
     edges: list[FlowEdge] = Field(default_factory=list, max_length=500)
     viewport: Viewport = Field(default_factory=Viewport)
+    design: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_graph(self) -> "FlowDocument":

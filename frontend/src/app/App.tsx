@@ -5,7 +5,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "../features/auth/model/auth-store";
 import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
+import { ChatFlowsPage } from "../pages/chatflows/ChatFlowsPage";
 import { ConversationsPage } from "../pages/conversations/ConversationsPage";
+import { ChatbotDesignPage } from "../pages/design/ChatbotDesignPage";
+import { InstallChatbotPage } from "../pages/install/InstallChatbotPage";
 import { KnowledgePage } from "../pages/knowledge/KnowledgePage";
 import { LoginPage } from "../pages/login/LoginPage";
 import { LoadingState, ToastProvider } from "../shared/ui";
@@ -25,7 +28,7 @@ function AppRoutes() {
   }, [hydrate]);
 
   if (status === "loading") {
-    return <LoadingState label="Opening builder" />;
+    return <LoadingState label="Opening workspace..." />;
   }
 
   const authenticated = status === "authenticated";
@@ -34,13 +37,29 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={authenticated ? <Navigate to="/builder" replace /> : <LoginPage />}
+        element={authenticated ? <Navigate to="/chatbots" replace /> : <LoginPage />}
       />
       <Route
         path="/register"
         element={
-          authenticated ? <Navigate to="/builder" replace /> : <AuthPage mode="register" />
+          authenticated ? <Navigate to="/chatbots" replace /> : <AuthPage mode="register" />
         }
+      />
+      <Route
+        path="/chatbots"
+        element={authenticated ? <ChatFlowsPage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/chatbots/:chatbotId/flows"
+        element={authenticated ? <ChatFlowsPage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/chatbots/:chatbotId/design"
+        element={authenticated ? <ChatbotDesignPage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/chatbots/:chatbotId/install"
+        element={authenticated ? <InstallChatbotPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/builder/:chatbotId?"
@@ -56,7 +75,7 @@ function AppRoutes() {
       />
       <Route
         path="*"
-        element={<Navigate to={authenticated ? "/builder" : "/login"} replace />}
+        element={<Navigate to={authenticated ? "/chatbots" : "/login"} replace />}
       />
     </Routes>
   );
