@@ -76,6 +76,7 @@ async def _persist_turn(
         variables=result.variables,
     )
     await session.flush()
+    await session.refresh(conversation)
     return stored
 
 
@@ -392,4 +393,5 @@ async def close_conversation(
         target_id=str(conversation.id),
     )
     await session.commit()
+    await session.refresh(conversation)
     return success(_conversation_data(conversation))
