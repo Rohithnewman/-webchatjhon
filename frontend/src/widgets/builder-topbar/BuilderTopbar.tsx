@@ -1,5 +1,6 @@
-import { Bot, Check, Download, Menu, Save, Upload } from "lucide-react";
+import { BookOpen, Bot, Check, Code2, Download, Menu, MessageSquare, Save, Upload, Workflow } from "lucide-react";
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 
 import type { Chatbot } from "../../entities/chatbot/types";
 import { Button, IconButton, StatusDot, VisuallyHidden } from "../../shared/ui";
@@ -14,6 +15,7 @@ interface Props {
   onTogglePublished: () => void;
   onExport: () => void;
   onImport: (file: File) => void;
+  onOpenEmbed: () => void;
 }
 
 /**
@@ -30,6 +32,7 @@ export function BuilderTopbar({
   onTogglePublished,
   onExport,
   onImport,
+  onOpenEmbed,
 }: Props) {
   const importRef = useRef<HTMLInputElement>(null);
   const published = chatbot?.status === "published";
@@ -39,8 +42,22 @@ export function BuilderTopbar({
       <div className="builder-brand">
         <Bot size={21} aria-hidden />
         <strong>WebChatBots</strong>
-        <span>Builder</span>
       </div>
+
+      <nav className="builder-nav-links">
+        <Link to="/builder" className="builder-nav-item is-active">
+          <Workflow size={15} />
+          <span>Builder</span>
+        </Link>
+        <Link to="/conversations" className="builder-nav-item">
+          <MessageSquare size={15} />
+          <span>Inbox</span>
+        </Link>
+        <Link to="/knowledge" className="builder-nav-item">
+          <BookOpen size={15} />
+          <span>Knowledge</span>
+        </Link>
+      </nav>
 
       <IconButton
         label="Show chatbots"
@@ -56,6 +73,17 @@ export function BuilderTopbar({
       </div>
 
       <div className="builder-actions">
+        {chatbot ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onOpenEmbed}
+            icon={<Code2 size={15} />}
+          >
+            Embed & Test
+          </Button>
+        ) : null}
+
         <IconButton
           label="Import JSON"
           icon={<Upload size={17} />}

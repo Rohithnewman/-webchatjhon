@@ -7,6 +7,7 @@ import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
 import { useAuthStore } from "../../features/auth/model/auth-store";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
+import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import {
   downloadFlowDocument,
   readFlowDocument,
@@ -30,6 +31,7 @@ function BuilderWorkspace() {
 
   const [panelTab, setPanelTab] = useState<"config" | "history">("config");
   const [createOpen, setCreateOpen] = useState(false);
+  const [embedOpen, setEmbedOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
 
   const chatbotsQuery = useQuery({ queryKey: ["chatbots"], queryFn: chatbotApi.list });
@@ -144,6 +146,7 @@ function BuilderWorkspace() {
           downloadFlowDocument(graph.snapshot(), selectedChatbot?.name ?? "flow")
         }
         onImport={(file) => void importFlow(file)}
+        onOpenEmbed={() => setEmbedOpen(true)}
       />
 
       <div className="builder-layout">
@@ -207,6 +210,12 @@ function BuilderWorkspace() {
         onSubmit={async (data) => {
           await createMutation.mutateAsync(data);
         }}
+      />
+
+      <WidgetEmbedDialog
+        open={embedOpen}
+        chatbot={selectedChatbot}
+        onClose={() => setEmbedOpen(false)}
       />
     </main>
   );
