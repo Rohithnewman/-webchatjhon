@@ -5286,7 +5286,7 @@ async def test_message_meta_round_trips_through_widget_and_dashboard(client):
     assert bot[0]["meta"] == {"kind": "image", "url": "https://example.com/a.png"}
 
     transcript = await client.get(f"/api/v1/conversations/{started['conversation']['id']}", headers=headers)
-    assert transcript.json()["data"]["messages"][1]["meta"]["options"] == ["A", "B"]
+    assert transcript.json()["data"]["messages"][0]["meta"]["options"] == ["A", "B"]  # the choice prompt is the first message
 ```
 
 Run both files → FAIL on missing `meta`.
