@@ -7,3 +7,4 @@ venv/
 dev.db
 .superpowers/
 *.log
+frontend/.git-nested-disabled/
