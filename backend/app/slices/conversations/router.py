@@ -142,6 +142,29 @@ async def widget_conversation(
     return conversation
 
 
+@widget_router.get(
+    "/chatbots/{chatbot_id}",
+    dependencies=[Depends(rate_limit("widget_profile"))],
+)
+async def widget_chatbot_profile(
+    chatbot_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> dict:
+    """Public, unauthenticated: the name and saved design of a published bot,
+    so widget.js can paint itself before the visitor opens a conversation."""
+    chatbot = await chatbots_api.get_published_chatbot(session, chatbot_id=chatbot_id)
+    if chatbot is None:
+        raise AppError(
+            code="NOT_FOUND",
+            message="Chatbot not found or not published",
+            status_code=404,
+        )
+    flow = await chatbots_api.get_current_flow(
+        session, workspace_id=chatbot.workspace_id, chatbot_id=chatbot.id
+    )
+    design = flow.definition.get("design", {}) if flow is not None else {}
+    return success({"name": chatbot.name, "design": design if isinstance(design, dict) else {}})
+
+
 @widget_router.post(
     "/conversations",
     status_code=201,

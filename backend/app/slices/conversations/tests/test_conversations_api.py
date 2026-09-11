@@ -217,3 +217,38 @@ async def test_conversations_are_workspace_isolated(client):
         f"/api/v1/conversations/{conversation_id}/close", headers=headers_b
     )
     assert barred.status_code == 404
+
+
+DESIGNED_FLOW = {
+    **HANDOFF_FLOW,
+    "design": {"themeColor": "#e53e3e", "botTitle": "Acme Helper", "positionWeb": "left"},
+}
+
+
+async def test_widget_exposes_published_design(client):
+    headers = await _auth(client, "design@x.com", "Acme")
+    chatbot_id = await _published_chatbot(client, headers, flow=DESIGNED_FLOW)
+
+    response = await client.get(f"/api/v1/widget/chatbots/{chatbot_id}")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["name"] == "Concierge"
+    assert data["design"]["themeColor"] == "#e53e3e"
+    assert data["design"]["botTitle"] == "Acme Helper"
+
+
+async def test_widget_design_hidden_for_unpublished_bot(client):
+    headers = await _auth(client, "design2@x.com", "Acme")
+    created = await client.post("/api/v1/chatbots", json={"name": "Draft"}, headers=headers)
+    chatbot_id = created.json()["data"]["id"]
+
+    response = await client.get(f"/api/v1/widget/chatbots/{chatbot_id}")
+    assert response.status_code == 404
+
+
+async def test_widget_design_defaults_to_empty_object(client):
+    headers = await _auth(client, "design3@x.com", "Acme")
+    chatbot_id = await _published_chatbot(client, headers)
+
+    response = await client.get(f"/api/v1/widget/chatbots/{chatbot_id}")
+    assert response.json()["data"]["design"] == {}

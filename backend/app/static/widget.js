@@ -49,7 +49,8 @@
     ".wcb-form{display:flex;border-top:1px solid #e6e6ef;background:#fff}" +
     ".wcb-form input{flex:1;border:none;outline:none;padding:12px 14px;font-size:13px}" +
     ".wcb-form button{border:none;background:none;color:" + ACCENT + ";font-weight:600;font-size:13px;padding:0 16px;cursor:pointer}" +
-    ".wcb-form button:disabled{opacity:.4;cursor:default}";
+    ".wcb-form button:disabled{opacity:.4;cursor:default}" +
+    ".wcb-sub{font-size:11px;font-weight:400;opacity:.85;margin-top:2px}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
@@ -59,7 +60,7 @@
   root.className = "wcb-root";
   root.innerHTML =
     '<div class="wcb-panel" role="dialog" aria-label="Chat">' +
-    '<div class="wcb-head"><span class="wcb-title">Chat</span><button type="button" aria-label="Close">×</button></div>' +
+    '<div class="wcb-head"><div><div class="wcb-title">Chat</div><div class="wcb-sub"></div></div><button type="button" aria-label="Close">×</button></div>' +
     '<div class="wcb-log"></div>' +
     '<form class="wcb-form"><input type="text" placeholder="Type a message…" maxlength="4000" autocomplete="off"/><button type="submit">Send</button></form>' +
     "</div>" +
@@ -72,6 +73,48 @@
   var input = form.querySelector("input");
   var sendButton = form.querySelector("button");
   var title = root.querySelector(".wcb-title");
+  var subtitle = root.querySelector(".wcb-sub");
+  var bubble = root.querySelector(".wcb-bubble");
+  var head = root.querySelector(".wcb-head");
+  var overrides = document.createElement("style");
+  document.head.appendChild(overrides);
+
+  var SIZES = { S: [320, 440], M: [360, 520], L: [400, 600], XL: [440, 660], XXL: [480, 720] };
+
+  function applyDesign(d) {
+    d = d || {};
+    var accent = d.themeColor || ACCENT;
+    head.style.background = accent;
+    bubble.style.background = accent;
+    sendButton.style.color = accent;
+    overrides.textContent =
+      ".wcb-msg.visitor{background:" + accent + "}.wcb-msg.agent{border-color:" + accent + "}";
+    if (d.chatBgColor) log.style.background = d.chatBgColor;
+    if (d.fontFamily) root.style.fontFamily = d.fontFamily;
+    if (d.botTitle) title.textContent = d.botTitle;
+    subtitle.textContent = d.botStatusText || "";
+    if (d.inputPlaceholder) input.placeholder = d.inputPlaceholder;
+    if (d.positionWeb === "left") {
+      root.style.right = "auto";
+      root.style.left = "20px";
+      panel.style.right = "auto";
+      panel.style.left = "0";
+    }
+    var size = d.windowSize === "Custom" ? [d.customWidth || 360, d.customHeight || 520] : SIZES[d.windowSize];
+    if (size) {
+      panel.style.width = size[0] + "px";
+      panel.style.height = size[1] + "px";
+    }
+  }
+
+  function loadProfile() {
+    request("GET", "/widget/chatbots/" + CHATBOT_ID, null, function (status, payload) {
+      if (status === 200 && payload && payload.success) {
+        if (payload.data.name) title.textContent = payload.data.name;
+        applyDesign(payload.data.design);
+      }
+    });
+  }
 
   function render(role, content) {
     var el = document.createElement("div");
@@ -151,7 +194,6 @@
       }
       state.conversationId = payload.data.conversation.id;
       state.token = payload.data.token;
-      if (payload.data.chatbot_name) title.textContent = payload.data.chatbot_name;
       take(payload.data.messages);
       setStatus(payload.data.conversation.status);
     });
@@ -201,6 +243,8 @@
     state.open = false;
     panel.classList.remove("wcb-open");
   });
+
+  loadProfile();
 
   window.WebChatBots = { open: function () { root.querySelector(".wcb-bubble").click(); } };
 })();
