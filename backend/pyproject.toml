@@ -41,6 +41,7 @@ layers = [
 name = "cross-slice imports use published APIs only"
 type = "forbidden"
 source_modules = [
+    "app.slices.analytics",
     "app.slices.authz",
     "app.slices.identity",
     "app.slices.tenancy",

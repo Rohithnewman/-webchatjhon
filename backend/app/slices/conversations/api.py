@@ -64,3 +64,20 @@ async def status_counts(
         .group_by(Conversation.status)
     )
     return {status: count for status, count in rows}
+
+
+async def counts_by_chatbot(
+    session: AsyncSession, *, workspace_id: uuid.UUID, since: datetime
+) -> list[tuple[uuid.UUID, int]]:
+    """Conversations started per chatbot since `since`, most active first."""
+    rows = await session.execute(
+        select(Conversation.chatbot_id, func.count())
+        .where(
+            Conversation.workspace_id == workspace_id,
+            Conversation.created_at >= since,
+            Conversation.deleted_at.is_(None),
+        )
+        .group_by(Conversation.chatbot_id)
+        .order_by(func.count().desc())
+    )
+    return [(chatbot_id, count) for chatbot_id, count in rows]

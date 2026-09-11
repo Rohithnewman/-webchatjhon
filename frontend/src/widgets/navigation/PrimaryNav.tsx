@@ -78,7 +78,7 @@ export function PrimaryNav() {
           </Link>
 
           <Link
-            to="/chatbots"
+            to="/analytics"
             className={`primary-nav-btn ${path.startsWith("/analytics") ? "is-active" : ""}`}
             title="Analytics"
           >

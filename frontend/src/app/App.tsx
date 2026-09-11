@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuthStore } from "../features/auth/model/auth-store";
+import { AnalyticsPage } from "../pages/analytics/AnalyticsPage";
 import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
 import { ChatFlowsPage } from "../pages/chatflows/ChatFlowsPage";
@@ -77,6 +78,10 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={authenticated ? <SettingsPage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/analytics"
+        element={authenticated ? <AnalyticsPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"

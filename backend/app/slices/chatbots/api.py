@@ -60,6 +60,18 @@ async def get_current_flow(
     return CurrentFlow(version=flow.version, definition=flow.definition)
 
 
+async def list_names(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> dict[uuid.UUID, str]:
+    """id → name for every live chatbot in the workspace."""
+    rows = await session.execute(
+        select(Chatbot.id, Chatbot.name).where(
+            Chatbot.workspace_id == workspace_id, Chatbot.deleted_at.is_(None)
+        )
+    )
+    return {chatbot_id: name for chatbot_id, name in rows}
+
+
 __all__ = [
     "CurrentFlow",
     "FlowDocument",
@@ -67,4 +79,5 @@ __all__ = [
     "PublishedChatbot",
     "get_current_flow",
     "get_published_chatbot",
+    "list_names",
 ]
