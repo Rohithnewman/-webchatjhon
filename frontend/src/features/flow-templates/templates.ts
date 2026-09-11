@@ -26,7 +26,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         node("welcome", "message", 110, { label: "Welcome", message: "Hi! 👋 I can help you get in touch with our team." }),
         node("name", "question", 220, { label: "Ask name", prompt: "What's your name?", variable: "name" }),
         node("email", "input", 330, { label: "Ask email", prompt: "Thanks {{name}}! What's your email address?", variable: "email", inputType: "email" }),
-        node("interest", "choice", 440, { label: "Interest", prompt: "What are you interested in?", options: "Pricing\nA demo\nSupport" }),
+        node("interest", "choice", 440, { label: "Interest", prompt: "What are you interested in?", options: "Pricing\nA demo\nSupport", variable: "interest" }),
         node("is-demo", "condition", 550, { label: "Wants a demo?", variable: "interest", operator: "equals", value: "A demo" }),
         node("demo-msg", "message", 660, { label: "Demo", message: "Great, {{name}} — someone will email {{email}} to book a demo within one business day." }, 80),
         node("other-msg", "message", 660, { label: "Other", message: "Got it. We'll send details about {{interest}} to {{email}}." }, 420),
@@ -45,7 +45,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "faq-knowledge",
     name: "FAQ with knowledge base",
     description: "Answers questions from an uploaded knowledge base; optionally lets an AI model phrase the answer.",
-    nodeTypes: ["message", "question", "knowledge_search", "llm", "message", "end"],
+    nodeTypes: ["message", "question", "knowledge_search", "llm", "end"],
     build: () => ({
       nodes: [
         node("start", "start", 0, { label: "Start" }),
@@ -69,7 +69,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
       nodes: [
         node("start", "start", 0, { label: "Start" }),
         node("welcome", "message", 110, { label: "Welcome", message: "Welcome to support. Let's sort this out." }),
-        node("issue", "choice", 220, { label: "Issue type", prompt: "What do you need help with?", options: "Billing\nTechnical problem\nSomething else" }),
+        node("issue", "choice", 220, { label: "Issue type", prompt: "What do you need help with?", options: "Billing\nTechnical problem\nSomething else", variable: "issue" }),
         node("is-tech", "condition", 330, { label: "Technical?", variable: "issue", operator: "equals", value: "Technical problem" }),
         node("status", "http_request", 440, { label: "Check status page", url: "https://httpbin.org/get?service=api", method: "GET", variable: "status" }, 80),
         node("wait", "delay", 550, { label: "Thinking…", seconds: 1 }, 80),
