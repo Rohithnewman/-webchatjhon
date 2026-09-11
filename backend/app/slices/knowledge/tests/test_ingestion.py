@@ -146,3 +146,29 @@ async def test_search_ranks_matching_document_first_and_stays_in_base(
     assert top_chunk.document_id == billing.id
     assert top_score > results[1][1]
     assert all(chunk.knowledge_base_id == base.id for chunk, _ in results)
+
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+BACKEND_ROOT = Path(__file__).resolve().parents[4]
+
+
+def test_local_embedding_is_identical_in_separate_interpreters():
+    """The API embeds queries and the worker embeds chunks in different
+    processes. If the vectors differ per process, search is meaningless."""
+    code = (
+        "from app.slices.knowledge.api import local_embedding;"
+        "print(local_embedding('billing invoices refunds payments'))"
+    )
+    outputs = set()
+    for seed in ("1", "2", "random"):
+        env = {**os.environ, "PYTHONHASHSEED": seed, "PYTHONPATH": str(BACKEND_ROOT)}
+        outputs.add(
+            subprocess.check_output(
+                [sys.executable, "-c", code], env=env, cwd=BACKEND_ROOT, text=True
+            ).strip()
+        )
+    assert len(outputs) == 1, f"embedding differs between interpreters: {outputs}"

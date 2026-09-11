@@ -1,4 +1,5 @@
 import uuid
+import zlib
 from app.core.errors import AppError
 from app.slices.knowledge import repository
 
@@ -8,9 +9,12 @@ async def require_base(session, workspace_id: uuid.UUID, base_id: uuid.UUID):
     return row
 
 def local_embedding(text: str, dimensions: int = 32) -> list[float]:
+    """Deterministic bag-of-words embedding used until a real embedding
+    provider is wired in. Uses crc32, not hash(): hash() is salted per
+    process, and the worker and the API are different processes."""
     values = [0.0] * dimensions
     for index, token in enumerate(text.lower().split()):
-        values[hash(token) % dimensions] += 1.0 / (index + 1)
+        values[zlib.crc32(token.encode("utf-8")) % dimensions] += 1.0 / (index + 1)
     return values
 
 
