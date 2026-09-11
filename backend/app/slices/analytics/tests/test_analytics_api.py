@@ -1,3 +1,6 @@
+from sqlalchemy import text
+
+
 async def _auth(client, email: str, org: str) -> dict:
     response = await client.post(
         "/api/v1/auth/register",
@@ -59,3 +62,30 @@ async def test_overview_rejects_bad_window(client):
     # The global handler renders validation failures as 400 VALIDATION_ERROR.
     assert response.status_code == 400
     assert response.json()["error"] == "VALIDATION_ERROR"
+
+
+async def test_overview_totals_are_window_scoped(client, session):
+    headers = await _auth(client, "aged@x.com", "Acme")
+    bot = await _published_chatbot(client, headers, "Old Bot")
+    started = await client.post("/api/v1/widget/conversations", json={"chatbot_id": bot})
+    assert started.status_code == 201
+
+    # Backdate the conversation past the 7-day window but still inside 90.
+    await session.execute(
+        text(
+            "UPDATE conversations SET created_at = now() - interval '40 days' "
+            "WHERE chatbot_id = :chatbot_id"
+        ),
+        {"chatbot_id": bot},
+    )
+
+    narrow = await client.get("/api/v1/analytics/overview?days=7", headers=headers)
+    assert narrow.status_code == 200
+    narrow_totals = narrow.json()["data"]["totals"]
+    assert narrow_totals["conversations"] == 0
+    assert narrow_totals["closed"] == 0
+    assert narrow.json()["data"]["by_chatbot"] == []
+
+    wide = await client.get("/api/v1/analytics/overview?days=90", headers=headers)
+    assert wide.status_code == 200
+    assert wide.json()["data"]["totals"]["conversations"] == 1

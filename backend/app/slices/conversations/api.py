@@ -53,14 +53,20 @@ async def daily_counts(
 
 
 async def status_counts(
-    session: AsyncSession, *, workspace_id: uuid.UUID
+    session: AsyncSession, *, workspace_id: uuid.UUID, since: datetime | None = None
 ) -> dict[str, int]:
+    """Conversations per status, optionally restricted to those started
+    since `since`. `since=None` (the default) counts all-time, preserving
+    the behaviour of existing callers."""
+    conditions = [
+        Conversation.workspace_id == workspace_id,
+        Conversation.deleted_at.is_(None),
+    ]
+    if since is not None:
+        conditions.append(Conversation.created_at >= since)
     rows = await session.execute(
         select(Conversation.status, func.count())
-        .where(
-            Conversation.workspace_id == workspace_id,
-            Conversation.deleted_at.is_(None),
-        )
+        .where(*conditions)
         .group_by(Conversation.status)
     )
     return {status: count for status, count in rows}

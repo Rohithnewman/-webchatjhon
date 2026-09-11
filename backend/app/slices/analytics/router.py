@@ -29,7 +29,9 @@ async def overview(
     daily = await conversations_api.daily_counts(
         session, workspace_id=ctx.workspace_id, since=since
     )
-    statuses = await conversations_api.status_counts(session, workspace_id=ctx.workspace_id)
+    statuses = await conversations_api.status_counts(
+        session, workspace_id=ctx.workspace_id, since=since
+    )
     per_bot = await conversations_api.counts_by_chatbot(
         session, workspace_id=ctx.workspace_id, since=since
     )
