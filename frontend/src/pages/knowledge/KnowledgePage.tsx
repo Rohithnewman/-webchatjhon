@@ -133,6 +133,9 @@ export function KnowledgePage() {
                     }
                   />
                   <Panel.Body>
+                    <p className="form-hint">
+                      Knowledge base ID for the flow's Knowledge node: <code>{selectedBase.id}</code>
+                    </p>
                     {docs.isLoading ? (
                       <LoadingState label="Loading documents..." />
                     ) : docs.data && docs.data.length > 0 ? (

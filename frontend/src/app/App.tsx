@@ -11,6 +11,7 @@ import { ChatbotDesignPage } from "../pages/design/ChatbotDesignPage";
 import { InstallChatbotPage } from "../pages/install/InstallChatbotPage";
 import { KnowledgePage } from "../pages/knowledge/KnowledgePage";
 import { LoginPage } from "../pages/login/LoginPage";
+import { SettingsPage } from "../pages/settings/SettingsPage";
 import { LoadingState, ToastProvider } from "../shared/ui";
 
 const queryClient = new QueryClient({
@@ -72,6 +73,10 @@ function AppRoutes() {
       <Route
         path="/knowledge"
         element={authenticated ? <KnowledgePage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/settings"
+        element={authenticated ? <SettingsPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"

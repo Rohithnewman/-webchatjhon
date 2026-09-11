@@ -103,14 +103,13 @@ export function ChatbotSubNav({
           <span>Install Your Chatbot</span>
         </Link>
 
-        <button
-          type="button"
-          className="sub-menu-item"
-          onClick={() => alert("Chatbot settings")}
+        <Link
+          to="/settings"
+          className={`sub-menu-item ${path.startsWith("/settings") ? "is-active" : ""}`}
         >
           <Settings size={17} />
           <span>Settings</span>
-        </button>
+        </Link>
 
         <button
           type="button"
