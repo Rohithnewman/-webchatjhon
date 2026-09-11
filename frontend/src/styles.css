@@ -4021,3 +4021,4 @@ input:checked + .slider:before {
 .simple-table th, .simple-table td { text-align: left; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
 .simple-table th { font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: .04em; }
 
+.audit-meta { font-size: 12px; color: #64748b; max-width: 360px; word-break: break-all; }

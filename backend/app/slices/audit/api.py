@@ -1,6 +1,8 @@
 """Published interface for the audit slice."""
 
 import uuid
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,4 +31,33 @@ async def record(
     )
 
 
-__all__ = ["actions", "record"]
+@dataclass(frozen=True)
+class AuditEntry:
+    id: uuid.UUID
+    action: str
+    actor_id: uuid.UUID | None
+    target_type: str | None
+    target_id: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+
+
+async def list_recent(
+    session: AsyncSession, *, workspace_id: uuid.UUID, limit: int = 50
+) -> list[AuditEntry]:
+    rows = await repository.list_recent(session, workspace_id=workspace_id, limit=limit)
+    return [
+        AuditEntry(
+            id=row.id,
+            action=row.action,
+            actor_id=row.actor_id,
+            target_type=row.target_type,
+            target_id=row.target_id,
+            metadata=dict(row.meta),
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+
+
+__all__ = ["actions", "record", "AuditEntry", "list_recent"]

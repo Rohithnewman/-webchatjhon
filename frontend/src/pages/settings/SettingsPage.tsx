@@ -1,16 +1,18 @@
 import { useState } from "react";
 
+import { ActivityPanel } from "../../features/activity/ActivityPanel";
 import { useAuthStore } from "../../features/auth/model/auth-store";
 import { ProviderCredentialsPanel } from "../../features/provider-credentials/ProviderCredentialsPanel";
 import { TeamPanel } from "../../features/team/TeamPanel";
 import { Tabs, type TabItem } from "../../shared/ui";
 import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
-export type SettingsTab = "providers" | "team";
+export type SettingsTab = "providers" | "team" | "activity";
 
 const TABS: readonly TabItem<SettingsTab>[] = [
   { id: "providers", label: "AI Providers" },
   { id: "team", label: "Team" },
+  { id: "activity", label: "Activity" },
 ];
 
 export function SettingsPage() {
@@ -24,6 +26,7 @@ export function SettingsPage() {
       </div>
       {tab === "providers" && <ProviderCredentialsPanel />}
       {tab === "team" && <TeamPanel currentUserId={userId} />}
+      {tab === "activity" && <ActivityPanel />}
     </DashboardShell>
   );
 }

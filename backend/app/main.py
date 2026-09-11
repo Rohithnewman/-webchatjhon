@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
 from app.slices.analytics.router import router as analytics_router
+from app.slices.audit.router import router as audit_router
 from app.slices.chatbots.router import router as chatbot_router
 from app.slices.conversations.router import router as conversations_router
 from app.slices.conversations.router import widget_router
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(widget_router)
     app.include_router(conversations_router)
     app.include_router(analytics_router)
+    app.include_router(audit_router)
 
     @app.get("/widget.js", include_in_schema=False)
     async def widget_js() -> FileResponse:

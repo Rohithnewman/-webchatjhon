@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.slices.audit.models import AuditLog
@@ -26,3 +27,15 @@ async def insert(
             meta=meta,
         )
     )
+
+
+async def list_recent(
+    session: AsyncSession, *, workspace_id: uuid.UUID, limit: int
+) -> list[AuditLog]:
+    statement = (
+        select(AuditLog)
+        .where(AuditLog.workspace_id == workspace_id)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(limit)
+    )
+    return list((await session.execute(statement)).scalars().all())
