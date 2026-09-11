@@ -6,7 +6,7 @@ import { conversationApi } from "../../entities/conversation";
 import { ConversationInbox } from "../../features/conversations-inbox/ConversationInbox";
 import { ConversationTranscript } from "../../features/conversations-inbox/ConversationTranscript";
 import { useToast } from "../../shared/ui";
-import { AppHeader } from "../../widgets/app-header/AppHeader";
+import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 export function ConversationsPage() {
   const toast = useToast();
@@ -91,8 +91,7 @@ export function ConversationsPage() {
     : undefined;
 
   return (
-    <div className="conversations-shell">
-      <AppHeader />
+    <DashboardShell title="Inbox" subtitle="Live conversations from every published chatbot. Reply here when a flow hands off to an agent.">
       <div className="conversations-main-grid">
         <ConversationInbox
           conversations={conversations}
@@ -112,6 +111,6 @@ export function ConversationsPage() {
           onCloseConversation={() => closeMutation.mutate()}
         />
       </div>
-    </div>
+    </DashboardShell>
   );
 }

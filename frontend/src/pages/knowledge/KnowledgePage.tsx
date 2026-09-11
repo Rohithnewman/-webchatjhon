@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { knowledgeApi } from "../../entities/knowledge/api";
 import { Button, Field, Input, LoadingState, Panel, useToast } from "../../shared/ui";
-import { AppHeader } from "../../widgets/app-header/AppHeader";
+import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 export function KnowledgePage() {
   const toast = useToast();
@@ -51,16 +51,8 @@ export function KnowledgePage() {
   const selectedBase = bases.data?.find((b) => b.id === selected);
 
   return (
-    <div className="knowledge-shell">
-      <AppHeader />
-      <main className="knowledge-main">
-        <div className="knowledge-content-wrapper">
-          <header className="knowledge-header">
-            <h1>Knowledge Bases</h1>
-            <p>Upload documents (PDF, DOCX, TXT, MD) to power RAG retrieval in your chatbot flows.</p>
-          </header>
-
-          <div className="knowledge-grid">
+    <DashboardShell title="Knowledge Bases" subtitle="Upload documents (PDF, DOCX, TXT, MD, HTML). They are chunked and embedded in the background and searched by the Knowledge node.">
+      <div className="knowledge-grid">
             <div className="knowledge-sidebar">
               <Panel>
                 <Panel.Header title="Create Knowledge Base" />
@@ -174,8 +166,6 @@ export function KnowledgePage() {
               )}
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+    </DashboardShell>
   );
 }

@@ -1,6 +1,5 @@
 import {
   ChevronDown,
-  Code2,
   Globe,
   Layers,
   Palette,

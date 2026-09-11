@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Chatbot } from "../../entities/chatbot/types";
 import { conversationApi, type ConversationMessage } from "../../entities/conversation";
-import { Button, Dialog } from "../../shared/ui";
+import { Button, Dialog, useToast } from "../../shared/ui";
 
 interface Props {
   open: boolean;
@@ -15,6 +15,7 @@ const API_BASE = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api/v1"
 const BACKEND_ROOT = API_BASE.replace(/\/api\/v1$/, "");
 
 export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
+  const toast = useToast();
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"code" | "test">("code");
 
@@ -53,7 +54,7 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
       setBotStatus(res.conversation.status);
     } catch (err: unknown) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Failed to start test session. Ensure chatbot is published.");
+      toast.error(err instanceof Error ? err.message : "Failed to start test session. Ensure chatbot is published.");
     } finally {
       setTesting(false);
     }

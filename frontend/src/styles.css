@@ -953,10 +953,11 @@
 }
 
 .conversations-main-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: 360px 1fr;
   overflow: hidden;
+  height: calc(100vh - 140px);
+  min-height: 480px;
 }
 
 .inbox-sidebar {
