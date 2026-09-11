@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,3 +90,66 @@ async def get_earliest_workspace_id(
     session: AsyncSession, *, user_id: uuid.UUID
 ) -> uuid.UUID | None:
     return await repository.select_earliest_workspace_id(session, user_id=user_id)
+
+
+@dataclass(frozen=True)
+class WorkspaceView:
+    id: uuid.UUID
+    name: str
+    organization_name: str
+
+
+@dataclass(frozen=True)
+class MemberRow:
+    user_id: uuid.UUID
+    role_name: str
+    joined_at: datetime
+
+
+async def get_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> WorkspaceView | None:
+    found = await repository.select_workspace_with_organization(
+        session, workspace_id=workspace_id
+    )
+    if found is None:
+        return None
+    workspace, organization = found
+    return WorkspaceView(
+        id=workspace.id, name=workspace.name, organization_name=organization.name
+    )
+
+
+async def list_memberships(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> list[MemberRow]:
+    rows = await repository.list_memberships_with_roles(session, workspace_id=workspace_id)
+    return [
+        MemberRow(user_id=membership.user_id, role_name=role.name, joined_at=membership.created_at)
+        for membership, role in rows
+    ]
+
+
+async def set_membership_role(
+    session: AsyncSession, *, workspace_id: uuid.UUID, user_id: uuid.UUID, role_id: uuid.UUID
+) -> bool:
+    membership = await repository.select_membership(
+        session, workspace_id=workspace_id, user_id=user_id
+    )
+    if membership is None:
+        return False
+    membership.role_id = role_id
+    await session.flush()
+    return True
+
+
+async def remove_membership(
+    session: AsyncSession, *, workspace_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    membership = await repository.select_membership(
+        session, workspace_id=workspace_id, user_id=user_id
+    )
+    if membership is None:
+        return False
+    await repository.soft_delete_membership(session, membership=membership)
+    return True

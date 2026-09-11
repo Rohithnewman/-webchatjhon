@@ -12,6 +12,7 @@ from app.slices.conversations.router import router as conversations_router
 from app.slices.conversations.router import widget_router
 from app.slices.health.router import router as health_router
 from app.slices.identity.router import router as auth_router
+from app.slices.members.router import router as members_router
 from app.slices.providers.router import router as providers_router
 from app.slices.knowledge.router import router as knowledge_router
 
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(chatbot_router)
     app.include_router(providers_router)
     app.include_router(knowledge_router)
+    app.include_router(members_router)
     app.include_router(widget_router)
     app.include_router(conversations_router)
     app.include_router(analytics_router)

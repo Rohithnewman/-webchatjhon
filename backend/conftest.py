@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+import email_validator
 import psycopg
 import pytest
 import pytest_asyncio
@@ -11,6 +12,11 @@ from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.database import build_engine
+
+# Tests use reserved-TLD addresses (e.g. "@acme.test") per RFC 2606. Without
+# this, email-validator (via pydantic's EmailStr) rejects them as
+# "special-use or reserved" domains. This only affects the test process.
+email_validator.TEST_ENVIRONMENT = True
 
 BACKEND_ROOT = Path(__file__).resolve().parent
 

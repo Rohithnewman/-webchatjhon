@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -86,3 +87,43 @@ async def select_earliest_workspace_id(
         .limit(1)
     )
     return (await session.execute(statement)).scalars().first()
+
+
+async def select_workspace_with_organization(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> tuple[Workspace, Organization] | None:
+    statement = (
+        select(Workspace, Organization)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .where(Workspace.id == workspace_id, Workspace.deleted_at.is_(None))
+    )
+    row = (await session.execute(statement)).first()
+    return (row[0], row[1]) if row else None
+
+
+async def list_memberships_with_roles(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> list[tuple[Membership, Role]]:
+    statement = (
+        select(Membership, Role)
+        .join(Role, Role.id == Membership.role_id)
+        .where(Membership.workspace_id == workspace_id, Membership.deleted_at.is_(None))
+        .order_by(Membership.created_at, Membership.id)
+    )
+    return [(row[0], row[1]) for row in (await session.execute(statement)).all()]
+
+
+async def select_membership(
+    session: AsyncSession, *, workspace_id: uuid.UUID, user_id: uuid.UUID
+) -> Membership | None:
+    statement = select(Membership).where(
+        Membership.workspace_id == workspace_id,
+        Membership.user_id == user_id,
+        Membership.deleted_at.is_(None),
+    )
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def soft_delete_membership(session: AsyncSession, *, membership: Membership) -> None:
+    membership.deleted_at = datetime.now(timezone.utc)
+    await session.flush()

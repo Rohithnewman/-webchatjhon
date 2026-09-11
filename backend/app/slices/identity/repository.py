@@ -79,3 +79,12 @@ async def revoke_refresh_family(
     )
     result = await session.execute(statement)
     return result.rowcount or 0
+
+
+async def select_users(
+    session: AsyncSession, user_ids: list[uuid.UUID]
+) -> list[User]:
+    if not user_ids:
+        return []
+    statement = select(User).where(User.id.in_(user_ids), User.deleted_at.is_(None))
+    return list((await session.execute(statement)).scalars().all())
