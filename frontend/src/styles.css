@@ -4024,3 +4024,9 @@ input:checked + .slider:before {
 .audit-meta { font-size: 12px; color: #64748b; max-width: 360px; word-break: break-all; }
 
 .version-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #475569; background: #f1f5f9; border-radius: 999px; padding: 3px 10px; } .chatflows-table tr.is-selected td { background: #f0fdf7; }
+
+.template-list { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.template-card { display: flex; justify-content: space-between; gap: 16px; align-items: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; }
+.template-card p { margin: 4px 0 8px; color: #64748b; font-size: 13px; }
+.template-nodes { display: flex; flex-wrap: wrap; gap: 6px; }
+.template-nodes span { font-size: 11px; background: #f1f5f9; border-radius: 999px; padding: 2px 8px; color: #475569; }

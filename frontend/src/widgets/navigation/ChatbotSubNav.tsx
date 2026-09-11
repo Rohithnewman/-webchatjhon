@@ -7,7 +7,6 @@ import {
   Plus,
   Rocket,
   Settings,
-  Share2,
   Workflow,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -19,6 +18,7 @@ interface Props {
   selectedChatbot: Chatbot | null;
   onSelectChatbot: (id: string) => void;
   onCreateNewBot: () => void;
+  onOpenTemplates?: () => void;
 }
 
 export function ChatbotSubNav({
@@ -26,6 +26,7 @@ export function ChatbotSubNav({
   selectedChatbot,
   onSelectChatbot,
   onCreateNewBot,
+  onOpenTemplates,
 }: Props) {
   const location = useLocation();
   const path = location.pathname;
@@ -111,20 +112,7 @@ export function ChatbotSubNav({
           <span>Settings</span>
         </Link>
 
-        <button
-          type="button"
-          className="sub-menu-item"
-          onClick={() => alert("Third Party Integrations (Zapier, Webhooks, CRM)")}
-        >
-          <Share2 size={17} />
-          <span>Third Party Integration</span>
-        </button>
-
-        <button
-          type="button"
-          className="sub-menu-item"
-          onClick={() => alert("Chat Flow Templates")}
-        >
+        <button type="button" className="sub-menu-item" onClick={onOpenTemplates}>
           <Layers size={17} />
           <span>Chat Flow Templates</span>
         </button>

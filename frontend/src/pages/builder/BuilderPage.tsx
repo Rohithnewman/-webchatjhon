@@ -32,6 +32,7 @@ import {
 } from "../../features/flow-editor/lib/flow-document";
 import { useFlowGraph } from "../../features/flow-editor/model/use-flow-graph";
 import { ConfigPanel } from "../../features/flow-editor/ui/ConfigPanel";
+import { TemplatesDialog } from "../../features/flow-templates/TemplatesDialog";
 import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import { ApiError } from "../../shared/api/client";
 import { useToast } from "../../shared/ui";
@@ -53,6 +54,7 @@ function BuilderWorkspace() {
   const [panelTab, setPanelTab] = useState<"config" | "history">("config");
   const [createOpen, setCreateOpen] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [compModalOpen, setCompModalOpen] = useState(false);
 
   const chatbotsQuery = useQuery({ queryKey: ["chatbots"], queryFn: chatbotApi.list });
@@ -132,6 +134,7 @@ function BuilderWorkspace() {
         selectedChatbot={selectedChatbot}
         onSelectChatbot={(id) => navigate(`/builder/${id}`)}
         onCreateNewBot={() => setCreateOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
       <main className="ambot-main-viewport">
@@ -279,6 +282,12 @@ function BuilderWorkspace() {
         open={embedOpen}
         chatbot={selectedChatbot}
         onClose={() => setEmbedOpen(false)}
+      />
+
+      <TemplatesDialog
+        open={templatesOpen}
+        chatbot={selectedChatbot}
+        onClose={() => setTemplatesOpen(false)}
       />
     </div>
   );

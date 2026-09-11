@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
+import { TemplatesDialog } from "../../features/flow-templates/TemplatesDialog";
 import { LoadingState } from "../../shared/ui";
 import { ChatbotSubNav } from "./ChatbotSubNav";
 import { PrimaryNav } from "./PrimaryNav";
@@ -21,6 +22,7 @@ export function AmbotShell({ children }: Props) {
   const navigate = useNavigate();
   const { chatbotId } = useParams();
   const [createOpen, setCreateOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const chatbotsQuery = useQuery({
     queryKey: ["chatbots"],
@@ -47,6 +49,7 @@ export function AmbotShell({ children }: Props) {
         selectedChatbot={selectedChatbot}
         onSelectChatbot={handleSelectBot}
         onCreateNewBot={() => setCreateOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
       <main className="ambot-main-viewport">
@@ -69,6 +72,12 @@ export function AmbotShell({ children }: Props) {
           setCreateOpen(false);
           navigate(`/chatbots/${created.id}/flows`);
         }}
+      />
+
+      <TemplatesDialog
+        open={templatesOpen}
+        chatbot={selectedChatbot}
+        onClose={() => setTemplatesOpen(false)}
       />
     </div>
   );
