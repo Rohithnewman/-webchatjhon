@@ -2649,7 +2649,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "faq-knowledge",
     name: "FAQ with knowledge base",
     description: "Answers questions from an uploaded knowledge base; optionally lets an AI model phrase the answer.",
-    nodeTypes: ["message", "question", "knowledge_search", "llm", "message", "end"],
+    nodeTypes: ["message", "question", "knowledge_search", "llm", "end"],
     build: () => ({
       nodes: [
         node("start", "start", 0, { label: "Start" }),
