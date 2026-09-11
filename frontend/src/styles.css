@@ -4022,3 +4022,5 @@ input:checked + .slider:before {
 .simple-table th { font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: .04em; }
 
 .audit-meta { font-size: 12px; color: #64748b; max-width: 360px; word-break: break-all; }
+
+.version-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #475569; background: #f1f5f9; border-radius: 999px; padding: 3px 10px; } .chatflows-table tr.is-selected td { background: #f0fdf7; }

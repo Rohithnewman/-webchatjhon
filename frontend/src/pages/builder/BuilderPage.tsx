@@ -105,6 +105,18 @@ function BuilderWorkspace() {
     onError: notifyError,
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (version: number) => chatbotApi.restore(selectedId!, version),
+    onSuccess: async (flow) => {
+      graph.load(flow.definition);
+      graph.markSaved();
+      await queryClient.invalidateQueries({ queryKey: ["flow", selectedId] });
+      await queryClient.invalidateQueries({ queryKey: ["versions", selectedId] });
+      toast.success(`Restored as version ${flow.version}`);
+    },
+    onError: notifyError,
+  });
+
   const handleAddFromLibrary = (comp: ComponentItemDef) => {
     graph.addNode(comp.nodeType as any);
   };
@@ -239,8 +251,8 @@ function BuilderWorkspace() {
                   onTabChange={setPanelTab}
                   onChange={graph.updateSelectedNode}
                   onDelete={graph.deleteSelectedNode}
-                  onRestore={(version) => {}}
-                  restoring={false}
+                  onRestore={(version) => restoreMutation.mutate(version)}
+                  restoring={restoreMutation.isPending}
                 />
               )}
             </div>
