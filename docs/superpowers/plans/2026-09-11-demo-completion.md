@@ -2994,7 +2994,7 @@ Run: `.venv\Scripts\python.exe -m pytest tests/test_demo_page.py -v` → PASS.
 
 - [ ] **Step 3: Demo flows shared with the seed script**
 
-Create `backend/scripts/__init__.py` (empty) and `backend/scripts/demo_flows.py`. It must produce the same three flows as `frontend/src/features/flow-templates/templates.ts` so the demo bots match the templates the professor can also apply by hand:
+Create `backend/scripts/__init__.py` (empty) and `backend/scripts/demo_flows.py`. It mirrors the three flows in `frontend/src/features/flow-templates/templates.ts` so the demo bots match the templates the professor can also apply by hand, with one deliberate difference: the seeded FAQ flow omits the template's optional `llm` "AI summary" node so the seeded bot answers from the knowledge base even when no model is configured (an `llm` node with no reachable provider would apologise on every turn). The two seeded designs (`design` blocks) exist only on the seed side:
 
 ```python
 """The three demo flows, mirrored from frontend/src/features/flow-templates/templates.ts.
