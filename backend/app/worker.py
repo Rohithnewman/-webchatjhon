@@ -21,15 +21,16 @@ from typing import Final
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import registry as _registry  # noqa: F401 — imports every slice's
-# models so SQLAlchemy's declarative metadata is fully populated before a
-# handler runs. `app.main` gets this for free by importing every router
-# (which imports its slice's models transitively); this module, run standalone
-# via `python -m app.worker`, otherwise only pulls in the models its handler
-# modules happen to import directly, and a handler touching a table with a
-# cross-slice foreign key (e.g. `documents.workspace_id -> workspaces.id`)
-# fails with `NoReferencedTableError` the first time the ORM tries to resolve
-# it. `app.core.registry` exists for exactly this purpose (Alembic uses it).
+# Imports every slice's models so SQLAlchemy's declarative metadata is fully
+# populated before a handler runs. `app.main` gets this for free by importing
+# every router (which imports its slice's models transitively); this module,
+# run standalone via `python -m app.worker`, otherwise only pulls in the
+# models its handler modules happen to import directly, and a handler
+# touching a table with a cross-slice foreign key (e.g.
+# `documents.workspace_id -> workspaces.id`) fails with
+# `NoReferencedTableError` the first time the ORM tries to resolve it.
+# `app.core.registry` exists for exactly this purpose (Alembic uses it).
+from app.core import registry as _registry  # noqa: F401
 from app.core.database import async_session_factory
 from app.slices.jobs import api as jobs_api
 from app.slices.jobs.api import JobView

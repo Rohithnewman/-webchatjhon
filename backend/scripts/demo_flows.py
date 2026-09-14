@@ -1,5 +1,15 @@
 """The three demo flows, mirrored from frontend/src/features/flow-templates/templates.ts.
-Keep both in sync when changing either."""
+Keep both in sync when changing either, with two deliberate differences:
+
+(a) `faq_knowledge()` omits the template's optional `llm` "AI summary" node
+    (the template's `search -> answer -> ai -> end`, here `search -> answer
+    -> end`) so the seeded bot answers from the knowledge base even when no
+    model provider is reachable — the seeded demo must work with no model
+    configured.
+(b) the seed adds `design` blocks (widget appearance: theme color, bot
+    title/status text, window size, position) that the templates do not
+    carry.
+"""
 
 
 def _node(id_, type_, y, data, x=250):

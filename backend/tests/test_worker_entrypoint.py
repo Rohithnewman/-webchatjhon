@@ -15,14 +15,23 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_worker_entrypoint_registers_ingest_document_handler():
-    output = subprocess.check_output(
-        [sys.executable, "-m", "app.worker", "--list-handlers"],
-        cwd=BACKEND_ROOT,
-        env={**os.environ, "PYTHONPATH": str(BACKEND_ROOT)},
-        text=True,
-    )
+    try:
+        output = subprocess.check_output(
+            [sys.executable, "-m", "app.worker", "--list-handlers"],
+            cwd=BACKEND_ROOT,
+            env={**os.environ, "PYTHONPATH": str(BACKEND_ROOT)},
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            "worker entry point did not exit: --list-handlers must print and exit without polling"
+        )
+
     assert "ingest_document" in output
