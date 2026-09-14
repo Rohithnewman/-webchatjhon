@@ -8,3 +8,7 @@ dev.db
 .superpowers/
 *.log
 frontend/.git-nested-disabled/
+backend/storage/
+backend/*.log
+frontend/tsconfig.app.tsbuildinfo
+frontend/dist/
