@@ -88,3 +88,8 @@ async def select_users(
         return []
     statement = select(User).where(User.id.in_(user_ids), User.deleted_at.is_(None))
     return list((await session.execute(statement)).scalars().all())
+
+
+async def select_all_users(session: AsyncSession) -> list[User]:
+    statement = select(User).where(User.deleted_at.is_(None)).order_by(User.created_at, User.id)
+    return list((await session.execute(statement)).scalars().all())

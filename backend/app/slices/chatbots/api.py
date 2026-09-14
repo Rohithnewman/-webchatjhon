@@ -72,6 +72,19 @@ async def list_names(
     return {chatbot_id: name for chatbot_id, name in rows}
 
 
+async def platform_count(session: AsyncSession) -> int:
+    """Superadmin only: live chatbots across every workspace."""
+    from sqlalchemy import func
+
+    return int(
+        (
+            await session.execute(
+                select(func.count()).select_from(Chatbot).where(Chatbot.deleted_at.is_(None))
+            )
+        ).scalar_one()
+    )
+
+
 __all__ = [
     "CurrentFlow",
     "FlowDocument",
@@ -80,4 +93,5 @@ __all__ = [
     "get_current_flow",
     "get_published_chatbot",
     "list_names",
+    "platform_count",
 ]

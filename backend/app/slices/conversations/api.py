@@ -87,3 +87,14 @@ async def counts_by_chatbot(
         .order_by(func.count().desc())
     )
     return [(chatbot_id, count) for chatbot_id, count in rows]
+
+
+async def platform_count(session: AsyncSession) -> int:
+    """Superadmin only: conversations across every workspace."""
+    return int(
+        (
+            await session.execute(
+                select(func.count()).select_from(Conversation).where(Conversation.deleted_at.is_(None))
+            )
+        ).scalar_one()
+    )

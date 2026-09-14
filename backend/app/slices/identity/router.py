@@ -4,8 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.envelope import success
+from app.core.errors import AppError
 from app.core.rate_limit import rate_limit
 from app.shared.context import Principal
+from app.slices.identity import repository
 from app.slices.identity.dependencies import get_current_principal
 from app.slices.identity.schemas import (
     LoginIn,
@@ -22,6 +24,7 @@ from app.slices.identity.use_cases.switch_workspace import (
     switch_workspace as switch_workspace_use_case,
 )
 from app.slices.identity.use_cases.tokens import TokenBundle
+from app.slices.tenancy import api as tenancy_api
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -87,3 +90,27 @@ async def switch_workspace(
         target_workspace_id=body.workspace_id,
     )
     return success(_serialize(bundle))
+
+
+@router.get("/me")
+async def me(
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    user = await repository.select_user(session, principal.user_id)
+    if user is None or not user.is_active:
+        raise AppError(code="UNAUTHENTICATED", message="User is inactive", status_code=401)
+    membership = await tenancy_api.get_active_membership(
+        session, user_id=user.id, workspace_id=principal.workspace_id
+    )
+    return success(
+        {
+            "user_id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_superadmin": user.is_superadmin,
+            "workspace_id": str(principal.workspace_id),
+            "role": membership.role_name if membership else None,
+            "permissions": list(membership.permissions) if membership else [],
+        }
+    )

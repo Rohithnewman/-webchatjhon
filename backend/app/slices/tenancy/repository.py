@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -127,3 +127,66 @@ async def select_membership(
 async def soft_delete_membership(session: AsyncSession, *, membership: Membership) -> None:
     membership.deleted_at = datetime.now(timezone.utc)
     await session.flush()
+
+
+async def list_organizations_with_counts(
+    session: AsyncSession,
+) -> list[tuple[Organization, int, int]]:
+    workspace_count = (
+        select(Workspace.organization_id, func.count().label("n"))
+        .where(Workspace.deleted_at.is_(None))
+        .group_by(Workspace.organization_id)
+        .subquery()
+    )
+    member_count = (
+        select(Workspace.organization_id, func.count(func.distinct(Membership.user_id)).label("n"))
+        .join(Membership, Membership.workspace_id == Workspace.id)
+        .where(Workspace.deleted_at.is_(None), Membership.deleted_at.is_(None))
+        .group_by(Workspace.organization_id)
+        .subquery()
+    )
+    statement = (
+        select(
+            Organization,
+            func.coalesce(workspace_count.c.n, 0),
+            func.coalesce(member_count.c.n, 0),
+        )
+        .outerjoin(workspace_count, workspace_count.c.organization_id == Organization.id)
+        .outerjoin(member_count, member_count.c.organization_id == Organization.id)
+        .where(Organization.deleted_at.is_(None))
+        .order_by(Organization.created_at, Organization.id)
+    )
+    return [(row[0], int(row[1]), int(row[2])) for row in (await session.execute(statement)).all()]
+
+
+async def select_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID, for_update: bool = False
+) -> Organization | None:
+    statement = select(Organization).where(
+        Organization.id == organization_id, Organization.deleted_at.is_(None)
+    )
+    if for_update:
+        statement = statement.with_for_update()
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def count_organizations_and_workspaces(session: AsyncSession) -> tuple[int, int]:
+    organizations = (
+        await session.execute(select(func.count()).select_from(Organization).where(Organization.deleted_at.is_(None)))
+    ).scalar_one()
+    workspaces = (
+        await session.execute(select(func.count()).select_from(Workspace).where(Workspace.deleted_at.is_(None)))
+    ).scalar_one()
+    return int(organizations), int(workspaces)
+
+
+async def list_user_organization_names(session: AsyncSession) -> list[tuple[uuid.UUID, str]]:
+    statement = (
+        select(Membership.user_id, Organization.name)
+        .join(Workspace, Workspace.id == Membership.workspace_id)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .where(Membership.deleted_at.is_(None))
+        .distinct()
+        .order_by(Organization.name)
+    )
+    return [(row[0], row[1]) for row in (await session.execute(statement)).all()]

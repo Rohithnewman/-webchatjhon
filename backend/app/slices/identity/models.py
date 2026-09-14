@@ -27,6 +27,9 @@ class User(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         nullable=False, server_default=text("true")
     )
+    is_superadmin: Mapped[bool] = mapped_column(
+        nullable=False, server_default=text("false")
+    )
     failed_login_count: Mapped[int] = mapped_column(
         nullable=False, server_default=text("0")
     )

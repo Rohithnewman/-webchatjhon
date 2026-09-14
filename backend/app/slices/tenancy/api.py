@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AppError
 from app.slices.tenancy import repository
 from app.slices.tenancy.seed import SYSTEM_ROLES
 
@@ -153,3 +154,65 @@ async def remove_membership(
         return False
     await repository.soft_delete_membership(session, membership=membership)
     return True
+
+
+PLANS = ("free", "pro", "enterprise")
+
+
+@dataclass(frozen=True)
+class OrganizationSummary:
+    id: uuid.UUID
+    name: str
+    plan: str
+    created_at: datetime
+    workspace_count: int
+    member_count: int
+
+
+def _organization_summary(organization, workspace_count: int, member_count: int) -> OrganizationSummary:
+    return OrganizationSummary(
+        id=organization.id,
+        name=organization.name,
+        plan=organization.plan,
+        created_at=organization.created_at,
+        workspace_count=workspace_count,
+        member_count=member_count,
+    )
+
+
+async def platform_list_organizations(session: AsyncSession) -> list[OrganizationSummary]:
+    """Superadmin only: every organisation with its workspace and member counts."""
+    return [
+        _organization_summary(organization, workspaces, members)
+        for organization, workspaces, members in await repository.list_organizations_with_counts(session)
+    ]
+
+
+async def set_organization_plan(
+    session: AsyncSession, *, organization_id: uuid.UUID, plan: str
+) -> OrganizationSummary | None:
+    if plan not in PLANS:
+        raise AppError(code="INVALID_PLAN", message=f"plan must be one of {', '.join(PLANS)}", status_code=400)
+    organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
+    if organization is None:
+        return None
+    organization.plan = plan
+    await session.flush()
+    rows = await repository.list_organizations_with_counts(session)
+    return next(
+        _organization_summary(org, workspaces, members)
+        for org, workspaces, members in rows
+        if org.id == organization_id
+    )
+
+
+async def platform_counts(session: AsyncSession) -> dict[str, int]:
+    organizations, workspaces = await repository.count_organizations_and_workspaces(session)
+    return {"organizations": organizations, "workspaces": workspaces}
+
+
+async def platform_user_organizations(session: AsyncSession) -> dict[uuid.UUID, list[str]]:
+    out: dict[uuid.UUID, list[str]] = {}
+    for user_id, name in await repository.list_user_organization_names(session):
+        out.setdefault(user_id, []).append(name)
+    return out
