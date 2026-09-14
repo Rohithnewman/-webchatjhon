@@ -21,6 +21,15 @@ from typing import Final
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import registry as _registry  # noqa: F401 — imports every slice's
+# models so SQLAlchemy's declarative metadata is fully populated before a
+# handler runs. `app.main` gets this for free by importing every router
+# (which imports its slice's models transitively); this module, run standalone
+# via `python -m app.worker`, otherwise only pulls in the models its handler
+# modules happen to import directly, and a handler touching a table with a
+# cross-slice foreign key (e.g. `documents.workspace_id -> workspaces.id`)
+# fails with `NoReferencedTableError` the first time the ORM tries to resolve
+# it. `app.core.registry` exists for exactly this purpose (Alembic uses it).
 from app.core.database import async_session_factory
 from app.slices.jobs import api as jobs_api
 from app.slices.jobs.api import JobView
@@ -148,4 +157,28 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import argparse
+
+    # Re-enter through the importable module rather than running the rest of
+    # this file as `__main__`. `python -m app.worker` executes this file as
+    # the `__main__` module, which is a *different* module object from
+    # `app.worker` — importing `app.worker` here (which also triggers
+    # `app.slices.knowledge.worker`'s `from app.worker import register`)
+    # ensures the handler registry that gets populated and the one `main()`
+    # reads are the exact same dict, instead of two empty/half-filled copies
+    # living in `__main__` and `app.worker` respectively.
+    from app import worker as _worker
+
+    _parser = argparse.ArgumentParser()
+    _parser.add_argument(
+        "--list-handlers",
+        action="store_true",
+        help="Print the sorted registered job kinds (or 'none') and exit without touching the database.",
+    )
+    _args = _parser.parse_args()
+
+    if _args.list_handlers:
+        print("\n".join(sorted(_worker.HANDLERS)) or "none")
+        raise SystemExit(0)
+
+    asyncio.run(_worker.main())
