@@ -191,6 +191,7 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
   };
 
   const handleResetPreview = async () => {
+    sim.reset();
     if (selectedChatbot?.status === "published") {
       await sim.start();
     }

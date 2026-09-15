@@ -43,5 +43,13 @@ export function useWidgetSimulator(chatbotId: string | null) {
     setStatus(res.status);
   }, [conversationId, messages, status, token]);
 
-  return { messages, status, busy, error, started: Boolean(conversationId), start, send, poll };
+  const reset = useCallback(() => {
+    setConversationId(null);
+    setToken(null);
+    setMessages([]);
+    setStatus("active");
+    setError(null);
+  }, []);
+
+  return { messages, status, busy, error, started: Boolean(conversationId), start, send, poll, reset };
 }
