@@ -92,6 +92,27 @@ async def switch_workspace(
     return success(_serialize(bundle))
 
 
+@router.get("/workspaces")
+async def my_workspaces(
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    rows = await tenancy_api.list_user_workspaces(session, user_id=principal.user_id)
+    return success(
+        [
+            {
+                "workspace_id": str(row.workspace_id),
+                "workspace_name": row.workspace_name,
+                "organization_id": str(row.organization_id),
+                "organization_name": row.organization_name,
+                "role": row.role_name,
+                "is_current": row.workspace_id == principal.workspace_id,
+            }
+            for row in rows
+        ]
+    )
+
+
 @router.get("/me")
 async def me(
     principal: Principal = Depends(get_current_principal),

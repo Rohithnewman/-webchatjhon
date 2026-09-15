@@ -46,6 +46,7 @@ source_modules = [
     "app.slices.authz",
     "app.slices.identity",
     "app.slices.members",
+    "app.slices.organizations",
     "app.slices.tenancy",
     "app.slices.audit",
     "app.slices.health",

@@ -98,6 +98,7 @@ class WorkspaceView:
     id: uuid.UUID
     name: str
     organization_name: str
+    organization_id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,10 @@ async def get_workspace(
         return None
     workspace, organization = found
     return WorkspaceView(
-        id=workspace.id, name=workspace.name, organization_name=organization.name
+        id=workspace.id,
+        name=workspace.name,
+        organization_name=organization.name,
+        organization_id=organization.id,
     )
 
 
@@ -216,3 +220,94 @@ async def platform_user_organizations(session: AsyncSession) -> dict[uuid.UUID, 
     for user_id, name in await repository.list_user_organization_names(session):
         out.setdefault(user_id, []).append(name)
     return out
+
+
+@dataclass(frozen=True)
+class OrganizationView:
+    id: uuid.UUID
+    name: str
+    plan: str
+
+
+@dataclass(frozen=True)
+class WorkspaceSummary:
+    id: uuid.UUID
+    name: str
+    member_count: int
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class UserWorkspace:
+    workspace_id: uuid.UUID
+    workspace_name: str
+    organization_id: uuid.UUID
+    organization_name: str
+    role_name: str
+
+
+async def get_organization_of_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> OrganizationView | None:
+    found = await repository.select_workspace_with_organization(session, workspace_id=workspace_id)
+    if found is None:
+        return None
+    _, organization = found
+    return OrganizationView(id=organization.id, name=organization.name, plan=organization.plan)
+
+
+async def list_workspaces(session: AsyncSession, *, organization_id: uuid.UUID) -> list[WorkspaceSummary]:
+    return [
+        WorkspaceSummary(id=w.id, name=w.name, member_count=n, created_at=w.created_at)
+        for w, n in await repository.list_workspaces_with_member_counts(session, organization_id=organization_id)
+    ]
+
+
+async def create_workspace(session: AsyncSession, *, organization_id: uuid.UUID, name: str) -> WorkspaceSummary:
+    workspace = await repository.insert_workspace(session, organization_id=organization_id, name=name.strip())
+    if workspace.created_at is None:
+        # created_at is a server default; insert_workspace only flushes, so on
+        # some drivers/configurations the server-generated value isn't loaded
+        # back onto the ORM object yet. Refresh to pick it up.
+        await session.refresh(workspace)
+    return WorkspaceSummary(id=workspace.id, name=workspace.name, member_count=0, created_at=workspace.created_at)
+
+
+async def rename_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID, name: str
+) -> OrganizationView | None:
+    organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
+    if organization is None:
+        return None
+    organization.name = name.strip()
+    await session.flush()
+    return OrganizationView(id=organization.id, name=organization.name, plan=organization.plan)
+
+
+async def rename_workspace(
+    session: AsyncSession, *, organization_id: uuid.UUID, workspace_id: uuid.UUID, name: str
+) -> WorkspaceSummary | None:
+    workspace = await repository.select_workspace(session, workspace_id=workspace_id, for_update=True)
+    if workspace is None or workspace.organization_id != organization_id:
+        return None
+    workspace.name = name.strip()
+    await session.flush()
+    rows = await repository.list_workspaces_with_member_counts(session, organization_id=organization_id)
+    return next(
+        WorkspaceSummary(id=w.id, name=w.name, member_count=n, created_at=w.created_at)
+        for w, n in rows
+        if w.id == workspace_id
+    )
+
+
+async def list_user_workspaces(session: AsyncSession, *, user_id: uuid.UUID) -> list[UserWorkspace]:
+    return [
+        UserWorkspace(
+            workspace_id=workspace.id,
+            workspace_name=workspace.name,
+            organization_id=organization.id,
+            organization_name=organization.name,
+            role_name=role.name,
+        )
+        for workspace, organization, role in await repository.list_user_workspaces(session, user_id=user_id)
+    ]

@@ -190,3 +190,44 @@ async def list_user_organization_names(session: AsyncSession) -> list[tuple[uuid
         .order_by(Organization.name)
     )
     return [(row[0], row[1]) for row in (await session.execute(statement)).all()]
+
+
+async def list_workspaces_with_member_counts(
+    session: AsyncSession, *, organization_id: uuid.UUID
+) -> list[tuple[Workspace, int]]:
+    members = (
+        select(Membership.workspace_id, func.count().label("n"))
+        .where(Membership.deleted_at.is_(None))
+        .group_by(Membership.workspace_id)
+        .subquery()
+    )
+    statement = (
+        select(Workspace, func.coalesce(members.c.n, 0))
+        .outerjoin(members, members.c.workspace_id == Workspace.id)
+        .where(Workspace.organization_id == organization_id, Workspace.deleted_at.is_(None))
+        .order_by(Workspace.created_at, Workspace.id)
+    )
+    return [(row[0], int(row[1])) for row in (await session.execute(statement)).all()]
+
+
+async def select_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID, for_update: bool = False
+) -> Workspace | None:
+    statement = select(Workspace).where(Workspace.id == workspace_id, Workspace.deleted_at.is_(None))
+    if for_update:
+        statement = statement.with_for_update()
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def list_user_workspaces(
+    session: AsyncSession, *, user_id: uuid.UUID
+) -> list[tuple[Workspace, Organization, Role]]:
+    statement = (
+        select(Workspace, Organization, Role)
+        .join(Membership, Membership.workspace_id == Workspace.id)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .join(Role, Role.id == Membership.role_id)
+        .where(Membership.user_id == user_id, Membership.deleted_at.is_(None), Workspace.deleted_at.is_(None))
+        .order_by(Organization.name, Workspace.created_at)
+    )
+    return [(row[0], row[1], row[2]) for row in (await session.execute(statement)).all()]
