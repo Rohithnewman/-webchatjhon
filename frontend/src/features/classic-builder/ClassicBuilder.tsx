@@ -130,14 +130,17 @@ export function ClassicBuilder({
   };
 
   // Per-option routing for `choice` nodes: writes/replaces the edge whose
-  // label equals the option's exact text.
-  const handleSetOptionTarget = (option: string, targetId: string) => {
+  // label equals the option's exact text. The id folds in the option's
+  // position (not just its slug) so two options that slugify to the same
+  // thing — "Yes!" / "Yes?", or two symbol-only options that both fall back
+  // to "opt" — still get distinct, backend-safe edge ids.
+  const handleSetOptionTarget = (option: string, index: number, targetId: string) => {
     if (readOnly) return;
     if (!selectedNode) return;
     const filteredEdges = edges.filter((e) => !(e.source === selectedNode.id && e.label === option));
     if (targetId) {
       filteredEdges.push({
-        id: `e_${selectedNode.id}_${slugifyOption(option)}`,
+        id: `e_${selectedNode.id}_opt${index}_${slugifyOption(option)}`,
         source: selectedNode.id,
         target: targetId,
         label: option,
@@ -217,19 +220,19 @@ export function ClassicBuilder({
       return (
         <div className="cust-field-group routing-block">
           <label className="cust-label">Routing</label>
-          <p className="routing-hint">
-            Route each option to a different step. Options left on "Go to next message"
-            fall back to the flow's default next step.
+          <p className="form-hint">
+            Route every option. Options without a route follow the outgoing edge in the same
+            position, which is rarely what you want.
           </p>
-          {optionLines.map((option) => {
+          {optionLines.map((option, index) => {
             const edge = edges.find((e) => e.source === selectedNode.id && e.label === option);
             return (
-              <div key={option} className="routing-row">
+              <div key={`${index}_${option}`} className="routing-row">
                 <span className="routing-option-name">{option}</span>
                 <select
                   className="cust-dropdown"
                   value={edge?.target ?? ""}
-                  onChange={(e) => handleSetOptionTarget(option, e.target.value)}
+                  onChange={(e) => handleSetOptionTarget(option, index, e.target.value)}
                 >
                   <option value="">-- Go to next message --</option>
                   {options}
@@ -251,6 +254,10 @@ export function ClassicBuilder({
       return (
         <div className="cust-field-group routing-block">
           <label className="cust-label">Routing</label>
+          <p className="form-hint">
+            Set both branches. Unset branches fall back to the first and second outgoing
+            edges.
+          </p>
           <div className="routing-row">
             <span className="routing-option-name">If true →</span>
             <select

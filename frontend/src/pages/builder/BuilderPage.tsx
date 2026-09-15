@@ -108,6 +108,7 @@ function BuilderWorkspace() {
     },
     onSuccess: async (flow) => {
       graph.markSaved();
+      setClassicPending(false);
       await queryClient.invalidateQueries({ queryKey: ["flow", selectedId] });
       await queryClient.invalidateQueries({ queryKey: ["versions", selectedId] });
       await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
@@ -135,12 +136,37 @@ function BuilderWorkspace() {
     graph.addNode(comp.nodeType as any);
   };
 
+  // Tracks whether a classic-builder edit is queued or in flight so the save
+  // pill can show "Unsaved" during the debounce window and after a failed
+  // save — `graph.dirty` alone can't do this because `graph.load` (called
+  // synchronously by `queueSave`) always resets it to false.
+  const [classicPending, setClassicPending] = useState(false);
   const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDoc = useRef<FlowDocument | null>(null);
   const queueSave = (doc: FlowDocument) => {
     if (readOnly) return;
     graph.load(doc);
+    setClassicPending(true);
+    pendingDoc.current = doc;
     if (pendingSave.current) clearTimeout(pendingSave.current);
-    pendingSave.current = setTimeout(() => saveMutation.mutate(doc), 900);
+    pendingSave.current = setTimeout(() => {
+      pendingSave.current = null;
+      pendingDoc.current = null;
+      saveMutation.mutate(doc);
+    }, 900);
+  };
+  // Switching to the visual builder mid-debounce must not let a stale
+  // classic doc overwrite newer visual edits later — flush it immediately.
+  const flushPendingSave = () => {
+    if (pendingSave.current) {
+      clearTimeout(pendingSave.current);
+      pendingSave.current = null;
+    }
+    if (pendingDoc.current) {
+      const doc = pendingDoc.current;
+      pendingDoc.current = null;
+      saveMutation.mutate(doc);
+    }
   };
   useEffect(() => () => { if (pendingSave.current) clearTimeout(pendingSave.current); }, []);
 
@@ -166,10 +192,13 @@ function BuilderWorkspace() {
             flowDoc={currentSnapshot}
             flowTitle={botTitle}
             onUpdateFlow={queueSave}
-            onSwitchToVisual={() => setBuilderMode("visual")}
+            onSwitchToVisual={() => {
+              flushPendingSave();
+              setBuilderMode("visual");
+            }}
             onOpenTest={() => setEmbedOpen(true)}
             onOpenInstall={() => navigate(`/chatbots/${selectedId}/install`)}
-            saveState={saveMutation.isPending ? "saving" : graph.dirty ? "unsaved" : "saved"}
+            saveState={saveMutation.isPending ? "saving" : classicPending || graph.dirty ? "unsaved" : "saved"}
             readOnly={readOnly}
           />
         ) : (
