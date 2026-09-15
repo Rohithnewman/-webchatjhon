@@ -1,12 +1,14 @@
-import { BarChart3, BookOpen, Bot, LogOut, MessageSquare, Settings } from "lucide-react";
+import { BarChart3, BookOpen, Bot, LogOut, MessageSquare, Settings, ShieldCheck } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { useAuthStore } from "../../features/auth/model/auth-store";
+import { useMe } from "../../entities/me/api";
+import { useAuthStore } from "../../entities/session/auth-store";
 
 export function PrimaryNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
+  const { me } = useMe();
   const path = location.pathname;
 
   const handleSignOut = async () => {
@@ -55,6 +57,11 @@ export function PrimaryNav() {
           <Link to="/settings" className={`primary-nav-btn ${path.startsWith("/settings") ? "is-active" : ""}`} title="Settings">
             <Settings size={20} /><span>Settings</span>
           </Link>
+          {me?.is_superadmin && (
+            <Link to="/admin" className={`primary-nav-btn ${path.startsWith("/admin") ? "is-active" : ""}`} title="Platform admin">
+              <ShieldCheck size={20} /><span>Admin</span>
+            </Link>
+          )}
         </nav>
       </div>
 

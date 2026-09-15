@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { useAuthStore } from "../../features/auth/model/auth-store";
+import { useAuthStore } from "../../entities/session/auth-store";
 import { ApiError } from "../../shared/api/client";
 import { Button, Field, IconButton, Input } from "../../shared/ui";
 

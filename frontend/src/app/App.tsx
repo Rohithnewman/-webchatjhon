@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import { useAuthStore } from "../features/auth/model/auth-store";
+import { useAuthStore } from "../entities/session/auth-store";
+import { AdminPage } from "../pages/admin/AdminPage";
 import { AnalyticsPage } from "../pages/analytics/AnalyticsPage";
 import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
@@ -82,6 +83,10 @@ function AppRoutes() {
       <Route
         path="/analytics"
         element={authenticated ? <AnalyticsPage /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/admin"
+        element={authenticated ? <AdminPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"

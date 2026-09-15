@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { ActivityPanel } from "../../features/activity/ActivityPanel";
-import { useAuthStore } from "../../features/auth/model/auth-store";
+import { useAuthStore } from "../../entities/session/auth-store";
 import { ProviderCredentialsPanel } from "../../features/provider-credentials/ProviderCredentialsPanel";
 import { TeamPanel } from "../../features/team/TeamPanel";
 import { Tabs, type TabItem } from "../../shared/ui";

@@ -19,7 +19,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
-import { useAuthStore } from "../../features/auth/model/auth-store";
+import { useAuthStore } from "../../entities/session/auth-store";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { ClassicBuilder } from "../../features/classic-builder/ClassicBuilder";
 import {
