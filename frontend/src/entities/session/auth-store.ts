@@ -12,6 +12,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; full_name: string; org_name: string }) => Promise<void>;
   logout: () => Promise<void>;
+  switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
 function authenticated(tokens: AuthTokens) {
@@ -41,5 +42,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await authApi.logout();
     set({ status: "anonymous", userId: null, workspaceId: null });
+  },
+  switchWorkspace: async (workspaceId) => {
+    const tokens = await authApi.switchWorkspace(workspaceId);
+    set(authenticated(tokens));
   },
 }));

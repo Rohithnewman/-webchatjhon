@@ -143,4 +143,13 @@ export const authApi = {
       // Local session is already cleared.
     }
   },
+  async switchWorkspace(workspaceId: string) {
+    if (!refreshToken) throw new ApiError(401, "UNAUTHENTICATED", "Session expired");
+    const tokens = await apiRequest<AuthTokens>("/auth/switch-workspace", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken, workspace_id: workspaceId }),
+    });
+    setTokens(tokens);
+    return tokens;
+  },
 };

@@ -4031,3 +4031,5 @@ input:checked + .slider:before {
 .template-card p { margin: 4px 0 8px; color: #64748b; font-size: 13px; }
 .template-nodes { display: flex; flex-wrap: wrap; gap: 6px; }
 .template-nodes span { font-size: 11px; background: #f1f5f9; border-radius: 999px; padding: 2px 8px; color: #475569; }
+
+.workspace-switcher { width: 56px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 2px; margin-bottom: 8px; background: #fff; }

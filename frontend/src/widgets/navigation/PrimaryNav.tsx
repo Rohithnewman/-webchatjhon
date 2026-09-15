@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useMe } from "../../entities/me/api";
 import { useAuthStore } from "../../entities/session/auth-store";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 export function PrimaryNav() {
   const location = useLocation();
@@ -66,6 +67,7 @@ export function PrimaryNav() {
       </div>
 
       <div className="primary-nav-bottom">
+        <WorkspaceSwitcher />
         <button
           type="button"
           className="primary-nav-btn signout-btn"
