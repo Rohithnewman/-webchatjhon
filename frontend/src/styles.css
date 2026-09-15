@@ -4082,3 +4082,147 @@ input:checked + .slider:before {
 .sim-options { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 80%; }
 .sim-opt-btn { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; }
 .sim-opt-btn:disabled { opacity: .5; cursor: default; }
+
+/* ── Classic builder: save-state pill, step actions, routing (Task 21) ──── */
+
+.save-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.save-state-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.save-state-pill.save-state-saved {
+  color: #16a34a;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.save-state-pill.save-state-unsaved {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.save-state-pill.save-state-saving {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.save-state-pill.save-state-saving::before {
+  animation: save-state-pulse 1s ease-in-out infinite;
+}
+
+@keyframes save-state-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.stream-node-header {
+  position: relative;
+}
+
+.stream-step-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.stream-node-card:hover .stream-step-actions,
+.stream-node-card.is-selected .stream-step-actions {
+  opacity: 1;
+}
+
+.step-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.step-action-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.step-action-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.step-action-btn.step-action-danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.stream-reorder-hint {
+  max-width: 620px;
+  margin: 14px auto 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.routing-block {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+}
+
+.routing-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: -2px 0 4px;
+  line-height: 1.4;
+}
+
+.routing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.routing-row:first-of-type {
+  margin-top: 0;
+}
+
+.routing-option-name {
+  flex-shrink: 0;
+  min-width: 110px;
+  max-width: 140px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routing-row .cust-dropdown {
+  flex: 1;
+}

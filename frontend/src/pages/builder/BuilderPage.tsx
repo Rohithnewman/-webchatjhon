@@ -14,7 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
@@ -135,6 +135,15 @@ function BuilderWorkspace() {
     graph.addNode(comp.nodeType as any);
   };
 
+  const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueSave = (doc: FlowDocument) => {
+    if (readOnly) return;
+    graph.load(doc);
+    if (pendingSave.current) clearTimeout(pendingSave.current);
+    pendingSave.current = setTimeout(() => saveMutation.mutate(doc), 900);
+  };
+  useEffect(() => () => { if (pendingSave.current) clearTimeout(pendingSave.current); }, []);
+
   const currentSnapshot = graph.snapshot();
   const botTitle = selectedChatbot?.name ?? "AmBot";
 
@@ -156,13 +165,11 @@ function BuilderWorkspace() {
           <ClassicBuilder
             flowDoc={currentSnapshot}
             flowTitle={botTitle}
-            onUpdateFlow={(newDoc) => {
-              graph.load(newDoc);
-              saveMutation.mutate(newDoc);
-            }}
+            onUpdateFlow={queueSave}
             onSwitchToVisual={() => setBuilderMode("visual")}
             onOpenTest={() => setEmbedOpen(true)}
             onOpenInstall={() => navigate(`/chatbots/${selectedId}/install`)}
+            saveState={saveMutation.isPending ? "saving" : graph.dirty ? "unsaved" : "saved"}
             readOnly={readOnly}
           />
         ) : (
