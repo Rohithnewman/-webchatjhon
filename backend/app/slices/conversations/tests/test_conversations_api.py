@@ -252,3 +252,36 @@ async def test_widget_design_defaults_to_empty_object(client):
 
     response = await client.get(f"/api/v1/widget/chatbots/{chatbot_id}")
     assert response.json()["data"]["design"] == {}
+
+
+CHOICE_FLOW = {
+    "nodes": [
+        {"id": "s", "type": "start", "position": {"x": 0, "y": 0}, "data": {}},
+        {"id": "c", "type": "choice", "position": {"x": 0, "y": 0}, "data": {"prompt": "Pick", "options": "A\nB"}},
+        {"id": "i", "type": "message", "position": {"x": 0, "y": 0}, "data": {"message": "https://example.com/a.png"}},
+        {"id": "e", "type": "end", "position": {"x": 0, "y": 0}, "data": {}},
+    ],
+    "edges": [
+        {"id": "e1", "source": "s", "target": "c"},
+        {"id": "e2", "source": "c", "target": "i"},
+        {"id": "e3", "source": "i", "target": "e"},
+    ],
+    "viewport": {"x": 0, "y": 0, "zoom": 1},
+}
+
+
+async def test_message_meta_round_trips_through_widget_and_dashboard(client):
+    headers = await _auth(client, "meta@x.com", "Acme")
+    chatbot_id = await _published_chatbot(client, headers, flow=CHOICE_FLOW)
+    started = (await client.post("/api/v1/widget/conversations", json={"chatbot_id": chatbot_id})).json()["data"]
+    assert started["messages"][-1]["meta"] == {"options": ["A", "B"], "multiple": False}
+
+    widget = {"Authorization": f"Bearer {started['token']}"}
+    turn = await client.post(
+        f"/api/v1/widget/conversations/{started['conversation']['id']}/messages", json={"content": "A"}, headers=widget
+    )
+    bot = [m for m in turn.json()["data"]["messages"] if m["role"] == "bot"]
+    assert bot[0]["meta"] == {"kind": "image", "url": "https://example.com/a.png"}
+
+    transcript = await client.get(f"/api/v1/conversations/{started['conversation']['id']}", headers=headers)
+    assert transcript.json()["data"]["messages"][0]["meta"]["options"] == ["A", "B"]  # the choice prompt is the first message

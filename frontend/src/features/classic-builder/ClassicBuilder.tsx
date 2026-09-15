@@ -284,6 +284,8 @@ export function ClassicBuilder({
                         label: "Multiple Choice",
                         prompt: "Select all services you need:",
                         options: "Interior Design\nArchitectural Plan\nCivil Construction",
+                        mode: "multiple",
+                        variable: "choices",
                       })
                     }
                   >
@@ -341,10 +343,11 @@ export function ClassicBuilder({
                     type="button"
                     className="component-pick-row"
                     onClick={() =>
-                      handleAddComponent("question", {
+                      handleAddComponent("input", {
                         label: "Appointment",
                         prompt: "When would you like a site visit consultation?",
                         variable: "appointment_date",
+                        inputType: "date",
                       })
                     }
                   >
@@ -391,6 +394,7 @@ export function ClassicBuilder({
                       handleAddComponent("message", {
                         label: "Image/GIF",
                         message: "https://example.com/sample-villa.jpg",
+                        kind: "image",
                       })
                     }
                   >
@@ -405,6 +409,7 @@ export function ClassicBuilder({
                       handleAddComponent("message", {
                         label: "Video",
                         message: "https://youtube.com/watch?v=sample",
+                        kind: "video",
                       })
                     }
                   >
@@ -419,6 +424,7 @@ export function ClassicBuilder({
                       handleAddComponent("message", {
                         label: "Web Link",
                         message: "https://ambot365.com",
+                        kind: "link",
                       })
                     }
                   >

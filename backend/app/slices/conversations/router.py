@@ -38,6 +38,7 @@ def _message_data(message: ConversationMessage) -> dict[str, Any]:
         "role": message.role,
         "content": message.content,
         "node_id": message.node_id,
+        "meta": message.meta,
         "created_at": message.created_at.isoformat(),
     }
 
@@ -66,6 +67,7 @@ async def _persist_turn(
             role=item["role"],
             content=item["content"],
             node_id=item.get("node_id"),
+            meta=item.get("meta"),
         )
         for item in result.messages
     ]

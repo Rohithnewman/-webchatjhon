@@ -294,3 +294,87 @@ async def test_webhook_node_posts_payload():
     assert calls[0]["payload"]["event"] == "lead.created"
     assert calls[0]["payload"]["conversation_id"] == "c99"
     assert calls[0]["payload"]["variables"]["name"] == "Ada"
+
+
+async def test_choice_prompt_carries_options_meta_and_numbered_text():
+    definition = flow(
+        [("s", "start", {}), ("c", "choice", {"prompt": "Pick", "options": "Red\nBlue"}), ("e", "end", {})],
+        [("s", "c"), ("c", "e")],
+    )
+    result = await run(definition, services=make_services(), conversation_id="c1")
+    prompt = result.messages[-1]
+    assert prompt["content"] == "Pick\n1. Red\n2. Blue"
+    assert prompt["meta"] == {"options": ["Red", "Blue"], "multiple": False}
+
+
+async def test_multiple_choice_accepts_several_answers_and_stores_them():
+    definition = flow(
+        [
+            ("s", "start", {}),
+            ("c", "choice", {"prompt": "Services?", "options": "Design\nBuild\nMaintain", "mode": "multiple", "variable": "services"}),
+            ("m", "message", {"message": "You chose {{services}}"}),
+            ("e", "end", {}),
+        ],
+        [("s", "c"), ("c", "m"), ("m", "e")],
+    )
+    first = await run(definition, services=make_services(), conversation_id="c1")
+    assert first.messages[-1]["meta"]["multiple"] is True
+    resumed = await run(
+        definition, services=make_services(), conversation_id="c1",
+        variables=first.variables, current_node_id="c", visitor_input="Design, 3",
+    )
+    assert resumed.variables["services"] == "Design, Maintain"
+    assert resumed.messages[0]["content"] == "You chose Design, Maintain"
+
+    bad = await run(
+        definition, services=make_services(), conversation_id="c1",
+        variables=first.variables, current_node_id="c", visitor_input="Design, Paint",
+    )
+    assert bad.current_node_id == "c"
+    assert "Paint" in bad.messages[-1]["content"] or "listed options" in bad.messages[-1]["content"]
+
+
+async def test_message_kind_is_detected_or_declared():
+    definition = flow(
+        [
+            ("s", "start", {}),
+            ("img", "message", {"message": "https://example.com/villa.jpg"}),
+            ("vid", "message", {"message": "https://www.youtube.com/watch?v=abc123"}),
+            ("lnk", "message", {"message": "https://example.com", "kind": "link"}),
+            ("txt", "message", {"message": "See https://example.com for details"}),
+            ("e", "end", {}),
+        ],
+        [("s", "img"), ("img", "vid"), ("vid", "lnk"), ("lnk", "txt"), ("txt", "e")],
+    )
+    result = await run(definition, services=make_services(), conversation_id="c1")
+    metas = [m["meta"] for m in result.messages]
+    assert metas[0] == {"kind": "image", "url": "https://example.com/villa.jpg"}
+    assert metas[1] == {"kind": "video", "url": "https://www.youtube.com/watch?v=abc123"}
+    assert metas[2] == {"kind": "link", "url": "https://example.com"}
+    assert metas[3] == {}  # a sentence with a URL inside stays text
+
+
+async def test_input_prompt_carries_input_type_and_validates_name_and_date():
+    definition = flow(
+        [
+            ("s", "start", {}),
+            ("n", "input", {"prompt": "Name?", "variable": "name", "inputType": "name"}),
+            ("d", "input", {"prompt": "Date?", "variable": "when", "inputType": "date"}),
+            ("e", "end", {"message": "ok {{name}} {{when}}"}),
+        ],
+        [("s", "n"), ("n", "d"), ("d", "e")],
+    )
+    first = await run(definition, services=make_services(), conversation_id="c1")
+    assert first.messages[-1]["meta"] == {"inputType": "name"}
+
+    rejected = await run(definition, services=make_services(), conversation_id="c1", variables=first.variables, current_node_id="n", visitor_input="42")
+    assert rejected.current_node_id == "n"
+    accepted = await run(definition, services=make_services(), conversation_id="c1", variables=first.variables, current_node_id="n", visitor_input="Priya")
+    assert accepted.current_node_id == "d"
+    assert accepted.messages[-1]["meta"] == {"inputType": "date"}
+
+    bad_date = await run(definition, services=make_services(), conversation_id="c1", variables=accepted.variables, current_node_id="d", visitor_input="tomorrow")
+    assert bad_date.current_node_id == "d"
+    good_date = await run(definition, services=make_services(), conversation_id="c1", variables=accepted.variables, current_node_id="d", visitor_input="2026-10-01")
+    assert good_date.status == "closed"
+    assert good_date.messages[-1]["content"] == "ok Priya 2026-10-01"

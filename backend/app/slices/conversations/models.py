@@ -64,3 +64,6 @@ class ConversationMessage(CreatedAtMixin, Base):
     role: Mapped[str] = mapped_column(String(10), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     node_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    meta: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )

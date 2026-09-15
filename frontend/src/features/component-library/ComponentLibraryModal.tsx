@@ -78,7 +78,7 @@ export const ALL_COMPONENTS: ComponentItemDef[] = [
     description: "Give user choice to select multiple options and store responses",
     icon: ListCheck,
     nodeType: "choice",
-    defaultData: { label: "Multiple Choice", prompt: "Select all that apply:", options: "Item A\nItem B\nItem C" },
+    defaultData: { label: "Multiple Choice", prompt: "Select all that apply:", options: "Item A\nItem B\nItem C", mode: "multiple", variable: "choices" },
   },
   {
     id: "text_question",
@@ -113,8 +113,8 @@ export const ALL_COMPONENTS: ComponentItemDef[] = [
     category: "request",
     description: "Schedule a booking or site visit",
     icon: Calendar,
-    nodeType: "question",
-    defaultData: { label: "Appointment", prompt: "Choose a convenient date and time:", variable: "appointment_time" },
+    nodeType: "input",
+    defaultData: { label: "Appointment", prompt: "Choose a convenient date:", variable: "appointment_date", inputType: "date" },
   },
 
   // Send Information
@@ -134,7 +134,7 @@ export const ALL_COMPONENTS: ComponentItemDef[] = [
     description: "Display an image or banner",
     icon: Image,
     nodeType: "message",
-    defaultData: { label: "Image", message: "Here is a preview: https://example.com/banner.png" },
+    defaultData: { label: "Image", kind: "image", message: "https://example.com/banner.png" },
   },
   {
     id: "video",
@@ -143,7 +143,7 @@ export const ALL_COMPONENTS: ComponentItemDef[] = [
     description: "Share a video guide or demo link",
     icon: Video,
     nodeType: "message",
-    defaultData: { label: "Video", message: "Watch our demo: https://example.com/demo.mp4" },
+    defaultData: { label: "Video", kind: "video", message: "https://example.com/demo.mp4" },
   },
   {
     id: "weblink",
@@ -152,7 +152,7 @@ export const ALL_COMPONENTS: ComponentItemDef[] = [
     description: "Direct user to an external URL",
     icon: Link2,
     nodeType: "message",
-    defaultData: { label: "Link", message: "Visit our website at https://example.com" },
+    defaultData: { label: "Link", kind: "link", message: "https://example.com" },
   },
 
   // Decide and Act

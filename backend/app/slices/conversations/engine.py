@@ -114,7 +114,46 @@ def _validate_input(kind: str, value: str) -> bool:
         return True
     if kind == "phone":
         return bool(_PHONE_PATTERN.match(value))
+    if kind == "name":
+        return len(value.strip()) >= 2 and any(ch.isalpha() for ch in value) and not any(ch.isdigit() for ch in value)
+    if kind == "date":
+        return any(_parses(value.strip(), fmt) for fmt in _DATE_FORMATS)
     return True
+
+
+_URL_PATTERN = re.compile(r"^https?://\S+$")
+_IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+_VIDEO_HINTS = ("youtube.com/", "youtu.be/", ".mp4", ".webm", "vimeo.com/")
+_DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%dT%H:%M")
+
+
+def _parses(value: str, fmt: str) -> bool:
+    from datetime import datetime
+
+    try:
+        datetime.strptime(value, fmt)
+    except ValueError:
+        return False
+    return True
+
+
+def _message_meta(data: dict[str, Any], text: str) -> dict[str, Any]:
+    kind = str(data.get("kind", "") or "").lower()
+    lone_url = text.strip() if _URL_PATTERN.match(text.strip() or "") else ""
+    if kind in ("image", "video", "link"):
+        return {"kind": kind, "url": lone_url or text.strip()}
+    if not lone_url:
+        return {}
+    lowered = lone_url.lower().split("?")[0]
+    if lowered.endswith(_IMAGE_SUFFIXES):
+        return {"kind": "image", "url": lone_url}
+    if any(hint in lone_url.lower() for hint in _VIDEO_HINTS):
+        return {"kind": "video", "url": lone_url}
+    return {"kind": "link", "url": lone_url}
+
+
+def _is_multiple(data: dict[str, Any]) -> bool:
+    return str(data.get("mode", "")).lower() == "multiple" or data.get("multiple") in (True, "true", "yes")
 
 
 def _compare(left: Any, operator: str, right: str) -> bool:
@@ -158,11 +197,9 @@ async def run(
     result = StepResult(variables=dict(variables or {}))
     history = list(history or [])
 
-    def emit(content: str, node_id: str | None, role: str = "bot") -> None:
+    def emit(content: str, node_id: str | None, role: str = "bot", meta: dict[str, Any] | None = None) -> None:
         if content:
-            result.messages.append(
-                {"role": role, "content": content, "node_id": node_id}
-            )
+            result.messages.append({"role": role, "content": content, "node_id": node_id, "meta": meta or {}})
 
     if visitor_input is not None:
         result.variables["last_message"] = visitor_input
@@ -201,20 +238,25 @@ async def run(
             prompt = interpolate(
                 str(data.get("prompt", "")) or "Please enter a value", result.variables
             )
+            meta: dict[str, Any] = {}
             if node_type == "choice":
                 options = _choice_options(node)
                 if options:
                     prompt = prompt + "\n" + "\n".join(
                         f"{index + 1}. {option}" for index, option in enumerate(options)
                     )
-            emit(prompt, node["id"])
+                meta = {"options": options, "multiple": _is_multiple(data)}
+            elif node_type == "input":
+                meta = {"inputType": str(data.get("inputType", "text") or "text")}
+            emit(prompt, node["id"], meta=meta)
             result.current_node_id = node["id"]
             return result
 
         if node_type == "start":
             node = flow.follow(node["id"])
         elif node_type == "message":
-            emit(interpolate(str(data.get("message", "")), result.variables), node["id"])
+            text = interpolate(str(data.get("message", "")), result.variables)
+            emit(text, node["id"], meta=_message_meta(data, text))
             node = flow.follow(node["id"])
         elif node_type == "condition":
             outcome = _compare(
@@ -329,7 +371,7 @@ def _consume_wait_node(
 
     def stay(message: str) -> None:
         result.messages.append(
-            {"role": "bot", "content": message, "node_id": node["id"]}
+            {"role": "bot", "content": message, "node_id": node["id"], "meta": {}}
         )
         result.current_node_id = node["id"]
 
@@ -343,11 +385,24 @@ def _consume_wait_node(
 
     if node_type == "choice":
         options = _choice_options(node)
-        chosen_index: int | None = None
-        for index, option in enumerate(options):
-            if answer.lower() == option.lower() or answer == str(index + 1):
-                chosen_index = index
-                break
+
+        def match(token: str) -> int | None:
+            token = token.strip()
+            for index, option in enumerate(options):
+                if token.lower() == option.lower() or token == str(index + 1):
+                    return index
+            return None
+
+        if _is_multiple(data):
+            picks = [match(part) for part in answer.split(",") if part.strip()]
+            if not picks or any(pick is None for pick in picks):
+                stay("Please pick one or more of the listed options, separated by commas.")
+                return None
+            chosen_list = [options[i] for i in sorted({p for p in picks if p is not None})]
+            result.variables[str(data.get("variable", "") or "choice")] = ", ".join(chosen_list)
+            return flow.follow(node["id"])
+
+        chosen_index = match(answer)
         if chosen_index is None:
             stay("Please pick one of the listed options.")
             return None

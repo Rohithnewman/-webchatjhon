@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Chatbot } from "../../entities/chatbot/types";
 import { conversationApi, type ConversationMessage } from "../../entities/conversation";
+import { MessageBody } from "../conversations-inbox/MessageBody";
 import { Button, Dialog, useToast } from "../../shared/ui";
 
 interface Props {
@@ -60,10 +61,9 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
     }
   };
 
-  const sendTestMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!convId || !widgetToken || !inputText.trim() || sending) return;
-    const text = inputText.trim();
+  const sendText = async (raw: string) => {
+    if (!convId || !widgetToken || !raw.trim() || sending) return;
+    const text = raw.trim();
     setInputText("");
     setSending(true);
 
@@ -90,6 +90,11 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
     } finally {
       setSending(false);
     }
+  };
+
+  const sendTestMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendText(inputText);
   };
 
   return (
@@ -169,9 +174,26 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
               {messages.map((m) => (
                 <div key={m.id || m.ordinal} className={`sim-bubble is-${m.role}`}>
                   <span className="sim-role">{m.role === "visitor" ? "You" : m.role === "agent" ? "Agent" : "Bot"}</span>
-                  <div className="sim-text">{m.content}</div>
+                  <div className="sim-text">
+                    <MessageBody message={m} />
+                  </div>
                 </div>
               ))}
+              {messages.length > 0 && messages[messages.length - 1].meta?.options?.length ? (
+                <div className="sim-options">
+                  {messages[messages.length - 1].meta!.options!.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className="sim-opt-btn"
+                      disabled={sending || botStatus === "closed"}
+                      onClick={() => void sendText(option)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div ref={bottomRef} />
             </div>
 

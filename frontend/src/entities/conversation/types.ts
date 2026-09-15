@@ -1,12 +1,21 @@
 export type ConversationStatus = "active" | "handoff" | "closed";
 export type MessageRole = "visitor" | "bot" | "agent" | "system";
 
+export interface MessageMeta {
+  kind?: "image" | "video" | "link";
+  url?: string;
+  options?: string[];
+  multiple?: boolean;
+  inputType?: string;
+}
+
 export interface ConversationMessage {
   id: string;
   ordinal: number;
   role: MessageRole;
   content: string;
   node_id?: string | null;
+  meta?: MessageMeta;
   created_at: string;
 }
 

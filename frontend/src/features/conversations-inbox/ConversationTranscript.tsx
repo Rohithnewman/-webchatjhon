@@ -7,6 +7,7 @@ import type {
 } from "../../entities/conversation";
 import { Button, StatusDot } from "../../shared/ui";
 import { LiveAgentInput } from "./LiveAgentInput";
+import { MessageBody } from "./MessageBody";
 
 interface Props {
   conversation: ConversationDetail | null;
@@ -60,7 +61,9 @@ function MessageItem({ message }: { message: ConversationMessage }) {
           </span>
           <span className="transcript-bubble-time">{formatTime(message.created_at)}</span>
         </div>
-        <div className="transcript-bubble">{message.content}</div>
+        <div className="transcript-bubble">
+          <MessageBody message={message} />
+        </div>
       </div>
     </div>
   );

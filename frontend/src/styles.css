@@ -4047,3 +4047,8 @@ input:checked + .slider:before {
 .template-nodes span { font-size: 11px; background: #f1f5f9; border-radius: 999px; padding: 2px 8px; color: #475569; }
 
 .workspace-switcher { width: 56px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 2px; background: #fff; }
+
+.msg-media { max-width: 320px; border-radius: 8px; display: block; } iframe.msg-media { width: 320px; aspect-ratio: 16/9; border: 0; } .msg-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sim-options { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 80%; }
+.sim-opt-btn { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; }
+.sim-opt-btn:disabled { opacity: .5; cursor: default; }

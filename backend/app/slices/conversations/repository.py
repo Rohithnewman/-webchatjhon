@@ -88,6 +88,7 @@ async def append_message(
     role: str,
     content: str,
     node_id: str | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> ConversationMessage:
     next_ordinal = (
         await session.execute(
@@ -103,6 +104,7 @@ async def append_message(
         role=role,
         content=content,
         node_id=node_id,
+        meta=meta or {},
     )
     session.add(message)
     await session.flush()

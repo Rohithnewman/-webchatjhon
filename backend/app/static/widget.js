@@ -50,7 +50,11 @@
     ".wcb-form input{flex:1;border:none;outline:none;padding:12px 14px;font-size:13px}" +
     ".wcb-form button{border:none;background:none;color:" + ACCENT + ";font-weight:600;font-size:13px;padding:0 16px;cursor:pointer}" +
     ".wcb-form button:disabled{opacity:.4;cursor:default}" +
-    ".wcb-sub{font-size:11px;font-weight:400;opacity:.85;margin-top:2px}";
+    ".wcb-sub{font-size:11px;font-weight:400;opacity:.85;margin-top:2px}" +
+    ".wcb-media{max-width:100%;border-radius:8px;display:block}iframe.wcb-media{width:100%;aspect-ratio:16/9;border:0}" +
+    ".wcb-options{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:90%}" +
+    ".wcb-opt{border:1px solid " + ACCENT + ";color:" + ACCENT + ";background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer}" +
+    ".wcb-opt-on,.wcb-opt-done{background:" + ACCENT + ";color:#fff}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
@@ -88,7 +92,8 @@
     bubble.style.background = accent;
     sendButton.style.color = accent;
     overrides.textContent =
-      ".wcb-msg.visitor{background:" + accent + "}.wcb-msg.agent{border-color:" + accent + "}";
+      ".wcb-msg.visitor{background:" + accent + "}.wcb-msg.agent{border-color:" + accent + "}" +
+      ".wcb-opt{border-color:" + accent + ";color:" + accent + "}.wcb-opt-on,.wcb-opt-done{background:" + accent + ";color:#fff}";
     if (d.chatBgColor) log.style.background = d.chatBgColor;
     if (d.fontFamily) root.style.fontFamily = d.fontFamily;
     if (d.botTitle) title.textContent = d.botTitle;
@@ -116,18 +121,73 @@
     });
   }
 
-  function render(role, content) {
+  var VIDEO_EMBED = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/;
+
+  function render(role, content, meta) {
+    meta = meta || {};
     var el = document.createElement("div");
     el.className = "wcb-msg " + role;
-    el.textContent = content;
+    if (meta.kind === "image" && meta.url) {
+      var img = document.createElement("img");
+      img.src = meta.url; img.alt = content; img.className = "wcb-media";
+      el.appendChild(img);
+    } else if (meta.kind === "video" && meta.url) {
+      var yt = VIDEO_EMBED.exec(meta.url);
+      if (yt) {
+        var frame = document.createElement("iframe");
+        frame.src = "https://www.youtube.com/embed/" + yt[1]; frame.className = "wcb-media"; frame.allowFullscreen = true;
+        el.appendChild(frame);
+      } else {
+        var video = document.createElement("video");
+        video.src = meta.url; video.controls = true; video.className = "wcb-media";
+        el.appendChild(video);
+      }
+    } else if (meta.kind === "link" && meta.url) {
+      var a = document.createElement("a");
+      a.href = meta.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = content;
+      el.appendChild(a);
+    } else {
+      el.textContent = content;
+    }
     log.appendChild(el);
+    if (meta.options && meta.options.length) renderOptions(meta.options, !!meta.multiple);
+    if (meta.inputType) setInputType(meta.inputType);
     log.scrollTop = log.scrollHeight;
+  }
+
+  function setInputType(kind) {
+    var map = { email: "email", number: "number", phone: "tel", date: "date" };
+    input.type = map[kind] || "text";
+  }
+
+  function renderOptions(options, multiple) {
+    var row = document.createElement("div");
+    row.className = "wcb-options";
+    var selected = [];
+    options.forEach(function (label) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "wcb-opt"; b.textContent = label;
+      b.addEventListener("click", function () {
+        if (!multiple) { row.remove(); send(label); return; }
+        b.classList.toggle("wcb-opt-on");
+        var i = selected.indexOf(label);
+        if (i >= 0) selected.splice(i, 1); else selected.push(label);
+      });
+      row.appendChild(b);
+    });
+    if (multiple) {
+      var done = document.createElement("button");
+      done.type = "button"; done.className = "wcb-opt wcb-opt-done"; done.textContent = "Done";
+      done.addEventListener("click", function () { if (selected.length) { row.remove(); send(selected.join(", ")); } });
+      row.appendChild(done);
+    }
+    log.appendChild(row);
   }
 
   function take(messages) {
     (messages || []).forEach(function (m) {
       if (m.ordinal > state.lastOrdinal) state.lastOrdinal = m.ordinal;
-      render(m.role, m.content);
+      render(m.role, m.content, m.meta);
     });
   }
 
@@ -199,10 +259,8 @@
     });
   }
 
-  form.addEventListener("submit", function (event) {
-    event.preventDefault();
-    var content = input.value.trim();
-    if (!content || state.busy || !state.conversationId || state.status === "closed") return;
+  function send(content) {
+    setInputType("text");
     input.value = "";
     render("visitor", content);
     state.busy = true;
@@ -229,6 +287,13 @@
         input.focus();
       }
     );
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var content = input.value.trim();
+    if (!content || state.busy || !state.conversationId || state.status === "closed") return;
+    send(content);
   });
 
   root.querySelector(".wcb-bubble").addEventListener("click", function () {
