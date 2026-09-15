@@ -48,8 +48,8 @@ function BuilderWorkspace() {
   const toast = useToast();
   const logout = useAuthStore((state) => state.logout);
   const graph = useFlowGraph();
-  const { me, can } = useMe();
-  const readOnly = !can("features:use");
+  const { me, can, isReady } = useMe();
+  const readOnly = isReady && !can("features:use");
 
   // Mode: "classic" or "visual"
   const [builderMode, setBuilderMode] = useState<"classic" | "visual">("classic");
@@ -88,7 +88,10 @@ function BuilderWorkspace() {
     toast.error(error instanceof ApiError ? error.message : "Something went wrong");
 
   const createMutation = useMutation({
-    mutationFn: chatbotApi.create,
+    mutationFn: (input: { name: string; description: string }) => {
+      if (readOnly) throw new Error("Read-only role");
+      return chatbotApi.create(input);
+    },
     onSuccess: async (chatbot) => {
       await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
       setCreateOpen(false);
@@ -142,7 +145,7 @@ function BuilderWorkspace() {
         chatbots={chatbotsQuery.data ?? []}
         selectedChatbot={selectedChatbot}
         onSelectChatbot={(id) => navigate(`/builder/${id}`)}
-        onCreateNewBot={() => setCreateOpen(true)}
+        onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
         onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
@@ -260,18 +263,17 @@ function BuilderWorkspace() {
               />
 
               {graph.selectedNode && (
-                <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0 }}>
-                  <ConfigPanel
-                    node={graph.selectedNode}
-                    versions={versionsQuery.data ?? []}
-                    activeTab={panelTab}
-                    onTabChange={setPanelTab}
-                    onChange={graph.updateSelectedNode}
-                    onDelete={graph.deleteSelectedNode}
-                    onRestore={(version) => restoreMutation.mutate(version)}
-                    restoring={restoreMutation.isPending}
-                  />
-                </fieldset>
+                <ConfigPanel
+                  node={graph.selectedNode}
+                  versions={versionsQuery.data ?? []}
+                  activeTab={panelTab}
+                  onTabChange={setPanelTab}
+                  onChange={graph.updateSelectedNode}
+                  onDelete={graph.deleteSelectedNode}
+                  onRestore={(version) => restoreMutation.mutate(version)}
+                  restoring={restoreMutation.isPending}
+                  readOnly={readOnly}
+                />
               )}
             </div>
           </div>

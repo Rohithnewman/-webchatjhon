@@ -27,8 +27,8 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
   const fileInput = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [embedBot, setEmbedBot] = useState<Chatbot | null>(null);
-  const { me, can } = useMe();
-  const readOnly = !can("features:use");
+  const { me, can, isReady } = useMe();
+  const readOnly = isReady && !can("features:use");
 
   const flowQuery = useQuery({
     queryKey: ["flow", selectedChatbot?.id],

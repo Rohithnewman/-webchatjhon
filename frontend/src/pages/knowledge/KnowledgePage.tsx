@@ -10,8 +10,8 @@ import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 export function KnowledgePage() {
   const toast = useToast();
   const client = useQueryClient();
-  const { me, can } = useMe();
-  const readOnly = !can("features:use");
+  const { me, can, isReady } = useMe();
+  const readOnly = isReady && !can("features:use");
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 

@@ -62,8 +62,8 @@ interface ChatbotDesignPageInnerProps {
 function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { me, can } = useMe();
-  const readOnly = !can("features:use");
+  const { me, can, isReady } = useMe();
+  const readOnly = isReady && !can("features:use");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customColorInputRef = useRef<HTMLInputElement>(null);

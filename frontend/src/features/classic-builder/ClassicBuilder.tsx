@@ -481,11 +481,7 @@ export function ClassicBuilder({
         </div>
 
         {/* Column 3: Customize Bot Messages */}
-        <fieldset
-          disabled={readOnly}
-          style={{ border: 0, padding: 0, margin: 0 }}
-          className="classic-col col-customize-message"
-        >
+        <div className="classic-col col-customize-message">
           <div className="classic-col-header">
             <h3>Customize Bot Messages</h3>
           </div>
@@ -511,7 +507,11 @@ export function ClassicBuilder({
             {selectedNode ? (() => {
               const selData = (selectedNode.data || {}) as Record<string, any>;
               return (
-                <div className="customize-fields-stack">
+                <fieldset
+                  disabled={readOnly}
+                  style={{ border: 0, padding: 0, margin: 0 }}
+                  className="customize-fields-stack"
+                >
                   <div className="cust-field-group">
                     <label className="cust-label">
                       {selData.message !== undefined
@@ -580,13 +580,13 @@ export function ClassicBuilder({
                         })}
                     </select>
                   </div>
-                </div>
+                </fieldset>
               );
             })() : (
               <div className="cust-empty">Select a step in the center to customize it.</div>
             )}
           </div>
-        </fieldset>
+        </div>
       </div>
     </div>
   );

@@ -28,5 +28,6 @@ export function useMe() {
   });
   const permissions = query.data?.permissions ?? [];
   const can = (permission: string) => permissions.includes("*") || permissions.includes(permission);
-  return { ...query, me: query.data, can };
+  const isReady = query.isSuccess || query.isError;
+  return { ...query, me: query.data, can, isReady };
 }

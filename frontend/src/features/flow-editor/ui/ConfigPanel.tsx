@@ -12,9 +12,10 @@ interface Props {
   onDelete: () => void;
   onRestore: (version: number) => void;
   restoring: boolean;
+  readOnly?: boolean;
 }
 
-export function ConfigPanel({ node, versions, activeTab, onTabChange, onChange, onDelete, onRestore, restoring }: Props) {
+export function ConfigPanel({ node, versions, activeTab, onTabChange, onChange, onDelete, onRestore, restoring, readOnly = false }: Props) {
   const definition = node ? NODE_DEFINITIONS[node.type] : null;
   return (
     <aside className="config-panel">
@@ -40,9 +41,18 @@ export function ConfigPanel({ node, versions, activeTab, onTabChange, onChange, 
                   <label key={field.key}>
                     <span>{field.label}</span>
                     {field.kind === "textarea" ? (
-                      <textarea value={String(node.data[field.key] ?? "")} onChange={(event) => onChange(field.key, event.target.value)} rows={4} />
+                      <textarea
+                        value={String(node.data[field.key] ?? "")}
+                        onChange={(event) => onChange(field.key, event.target.value)}
+                        rows={4}
+                        disabled={readOnly}
+                      />
                     ) : field.kind === "select" ? (
-                      <select value={String(node.data[field.key] ?? "")} onChange={(event) => onChange(field.key, event.target.value)}>
+                      <select
+                        value={String(node.data[field.key] ?? "")}
+                        onChange={(event) => onChange(field.key, event.target.value)}
+                        disabled={readOnly}
+                      >
                         {field.options?.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
                       </select>
                     ) : (
@@ -50,12 +60,13 @@ export function ConfigPanel({ node, versions, activeTab, onTabChange, onChange, 
                         type={field.kind === "number" ? "number" : "text"}
                         value={String(node.data[field.key] ?? "")}
                         onChange={(event) => onChange(field.key, field.kind === "number" ? Number(event.target.value) : event.target.value)}
+                        disabled={readOnly}
                       />
                     )}
                   </label>
                 ))}
               </div>
-              <button type="button" className="danger-button" onClick={onDelete} disabled={node.type === "start"}>
+              <button type="button" className="danger-button" onClick={onDelete} disabled={readOnly || node.type === "start"}>
                 <Trash2 size={16} /> Delete node
               </button>
             </>
@@ -70,7 +81,7 @@ export function ConfigPanel({ node, versions, activeTab, onTabChange, onChange, 
               <div className="history-row__icon"><Clock3 size={15} /></div>
               <div><strong>Version {version.version}</strong><span>{new Date(version.created_at).toLocaleString()}</span></div>
               {version.is_current ? <span className="current-tag">Current</span> : (
-                <button className="icon-button" title={`Restore version ${version.version}`} aria-label={`Restore version ${version.version}`} onClick={() => onRestore(version.version)} disabled={restoring}>
+                <button className="icon-button" title={`Restore version ${version.version}`} aria-label={`Restore version ${version.version}`} onClick={() => onRestore(version.version)} disabled={readOnly || restoring}>
                   <RotateCcw size={15} />
                 </button>
               )}

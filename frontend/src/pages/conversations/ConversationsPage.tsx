@@ -12,8 +12,8 @@ import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 export function ConversationsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { can } = useMe();
-  const readOnly = !can("features:use");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("features:use");
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
