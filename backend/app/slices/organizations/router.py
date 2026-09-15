@@ -126,7 +126,7 @@ async def rename_workspace(
     await audit_api.record(
         session,
         action=audit_api.actions.WORKSPACE_RENAMED,
-        workspace_id=ctx.workspace_id,
+        workspace_id=workspace_id,
         actor_id=ctx.user_id,
         target_type="workspace",
         target_id=str(workspace_id),

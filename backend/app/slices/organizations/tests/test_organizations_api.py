@@ -89,3 +89,31 @@ async def test_organization_mutations_are_audited(client, session):
         text("SELECT action FROM audit_logs WHERE action LIKE 'organization.%' OR action = 'workspace.created' ORDER BY created_at")
     )
     assert [r[0] for r in rows] == ["organization.renamed", "workspace.created"]
+
+
+async def test_rename_workspace_audits_under_the_renamed_workspace_not_the_caller_s(client, session):
+    from sqlalchemy import text
+
+    owner = await _register(client, "cross@acme.test", "Acme")
+    created = await client.post(
+        "/api/v1/organization/workspaces", json={"name": "Ops"}, headers=_headers(owner)
+    )
+    assert created.status_code == 201, created.text
+    ops_id = created.json()["data"]["id"]
+
+    # Caller is still in the Default workspace context but renames Ops, a
+    # different workspace in the same organization.
+    renamed = await client.patch(
+        f"/api/v1/organization/workspaces/{ops_id}", json={"name": "Operations"}, headers=_headers(owner)
+    )
+    assert renamed.status_code == 200 and renamed.json()["data"]["name"] == "Operations"
+
+    rows = (
+        await session.execute(
+            text("SELECT workspace_id, target_id FROM audit_logs WHERE action = 'workspace.renamed'")
+        )
+    ).all()
+    assert len(rows) == 1
+    workspace_id, target_id = rows[0]
+    assert str(workspace_id) == ops_id
+    assert target_id == ops_id
