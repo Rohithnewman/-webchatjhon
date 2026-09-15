@@ -101,6 +101,15 @@ function BuilderWorkspace() {
     onError: notifyError,
   });
 
+  // Tracks whether a classic-builder edit is queued or in flight so the save
+  // pill can show "Unsaved" during the debounce window and after a failed
+  // save — `graph.dirty` alone can't do this because `graph.load` (called
+  // synchronously by `queueSave`) always resets it to false. Declared before
+  // `saveMutation` so its `onSuccess` closure can read the refs below.
+  const [classicPending, setClassicPending] = useState(false);
+  const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDoc = useRef<FlowDocument | null>(null);
+
   const saveMutation = useMutation({
     mutationFn: (doc: FlowDocument) => {
       if (readOnly) throw new Error("Read-only role");
@@ -108,7 +117,10 @@ function BuilderWorkspace() {
     },
     onSuccess: async (flow) => {
       graph.markSaved();
-      setClassicPending(false);
+      // Only clear the pending flag if no newer classic edit was queued
+      // while this save was in flight — otherwise a later edit's own save
+      // (still pending) would be masked as "Saved" until its own timer fires.
+      if (pendingSave.current === null && pendingDoc.current === null) setClassicPending(false);
       await queryClient.invalidateQueries({ queryKey: ["flow", selectedId] });
       await queryClient.invalidateQueries({ queryKey: ["versions", selectedId] });
       await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
@@ -136,13 +148,6 @@ function BuilderWorkspace() {
     graph.addNode(comp.nodeType as any);
   };
 
-  // Tracks whether a classic-builder edit is queued or in flight so the save
-  // pill can show "Unsaved" during the debounce window and after a failed
-  // save — `graph.dirty` alone can't do this because `graph.load` (called
-  // synchronously by `queueSave`) always resets it to false.
-  const [classicPending, setClassicPending] = useState(false);
-  const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDoc = useRef<FlowDocument | null>(null);
   const queueSave = (doc: FlowDocument) => {
     if (readOnly) return;
     graph.load(doc);
