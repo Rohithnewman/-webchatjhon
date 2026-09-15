@@ -3,16 +3,19 @@ import { useNavigate } from "react-router-dom";
 
 import { organizationApi } from "../../entities/organization/api";
 import { useAuthStore } from "../../entities/session/auth-store";
+import { useToast } from "../../shared/ui";
 
 export function WorkspaceSwitcher() {
   const client = useQueryClient();
   const navigate = useNavigate();
+  const toast = useToast();
   const userId = useAuthStore((s) => s.userId);
   const switchWorkspace = useAuthStore((s) => s.switchWorkspace);
   const mine = useQuery({ queryKey: ["my-workspaces", userId], queryFn: organizationApi.mine, enabled: Boolean(userId) });
   const switchTo = useMutation({
     mutationFn: (id: string) => switchWorkspace(id),
     onSuccess: () => { client.clear(); navigate("/chatbots"); },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Could not switch workspace"),
   });
 
   const rows = mine.data ?? [];
