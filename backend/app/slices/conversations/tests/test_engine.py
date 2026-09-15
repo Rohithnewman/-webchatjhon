@@ -378,3 +378,18 @@ async def test_input_prompt_carries_input_type_and_validates_name_and_date():
     good_date = await run(definition, services=make_services(), conversation_id="c1", variables=accepted.variables, current_node_id="d", visitor_input="2026-10-01")
     assert good_date.status == "closed"
     assert good_date.messages[-1]["content"] == "ok Priya 2026-10-01"
+
+
+async def test_explicit_kind_without_a_real_url_falls_back_to_text():
+    definition = flow(
+        [
+            ("s", "start", {}),
+            ("bad", "message", {"message": "javascript:alert(1)", "kind": "link"}),
+            ("prose", "message", {"message": "Watch our demo: https://example.com/demo.mp4", "kind": "video"}),
+            ("e", "end", {}),
+        ],
+        [("s", "bad"), ("bad", "prose"), ("prose", "e")],
+    )
+    result = await run(definition, services=make_services(), conversation_id="c1")
+    assert result.messages[0]["meta"] == {}
+    assert result.messages[1]["meta"] == {}

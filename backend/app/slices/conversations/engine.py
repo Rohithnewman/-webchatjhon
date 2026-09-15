@@ -141,7 +141,7 @@ def _message_meta(data: dict[str, Any], text: str) -> dict[str, Any]:
     kind = str(data.get("kind", "") or "").lower()
     lone_url = text.strip() if _URL_PATTERN.match(text.strip() or "") else ""
     if kind in ("image", "video", "link"):
-        return {"kind": kind, "url": lone_url or text.strip()}
+        return {"kind": kind, "url": lone_url} if lone_url else {}
     if not lone_url:
         return {}
     lowered = lone_url.lower().split("?")[0]
