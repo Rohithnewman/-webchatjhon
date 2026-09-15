@@ -59,3 +59,12 @@ def test_all_thirteen_node_types_are_accepted():
 def test_invalid_graphs_are_rejected(payload):
     with pytest.raises(ValidationError):
         FlowDocument.model_validate(payload)
+
+
+def test_design_blob_is_capped_at_300kb():
+    from app.slices.chatbots.schemas import FlowDocument
+
+    base = {"nodes": [{"id": "s", "type": "start", "position": {"x": 0, "y": 0}, "data": {}}], "edges": []}
+    FlowDocument(**base, design={"customAvatarUrl": "x" * 250_000})
+    with pytest.raises(ValidationError):
+        FlowDocument(**base, design={"customAvatarUrl": "x" * 400_000})

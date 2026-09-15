@@ -1,10 +1,10 @@
-import { Bot, Check, Copy, MessageSquare, Play, RefreshCw, Send } from "lucide-react";
+import { Bot, Check, Copy, MessageSquare, RefreshCw, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Chatbot } from "../../entities/chatbot/types";
-import { conversationApi, type ConversationMessage } from "../../entities/conversation";
 import { MessageBody } from "../conversations-inbox/MessageBody";
 import { Button, Dialog, useToast } from "../../shared/ui";
+import { useWidgetSimulator } from "./use-widget-simulator";
 
 interface Props {
   open: boolean;
@@ -19,20 +19,27 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"code" | "test">("code");
-
-  // Simulator state
-  const [testing, setTesting] = useState(false);
-  const [convId, setConvId] = useState<string | null>(null);
-  const [widgetToken, setWidgetToken] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [inputText, setInputText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [botStatus, setBotStatus] = useState<string>("active");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const sim = useWidgetSimulator(chatbot?.id ?? null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [sim.messages]);
+
+  useEffect(() => {
+    if (sim.error) toast.error(sim.error);
+  }, [sim.error, toast]);
+
+  // Poll for handoff replies every 2 seconds while an agent has taken over.
+  useEffect(() => {
+    if (sim.status !== "handoff") return;
+    const id = window.setInterval(() => {
+      void sim.poll();
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [sim.status, sim.poll]);
 
   if (!chatbot) return null;
 
@@ -44,57 +51,12 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const startSimulator = async () => {
-    setTesting(true);
-    setMessages([]);
-    try {
-      const res = await conversationApi.widgetStart(chatbot.id);
-      setConvId(res.conversation.id);
-      setWidgetToken(res.token);
-      setMessages(res.messages || []);
-      setBotStatus(res.conversation.status);
-    } catch (err: unknown) {
-      console.error(err);
-      toast.error(err instanceof Error ? err.message : "Failed to start test session. Ensure chatbot is published.");
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const sendText = async (raw: string) => {
-    if (!convId || !widgetToken || !raw.trim() || sending) return;
-    const text = raw.trim();
-    setInputText("");
-    setSending(true);
-
-    // Optimistic visitor message
-    const tempMsg: ConversationMessage = {
-      id: `temp-${Date.now()}`,
-      ordinal: messages.length + 1,
-      role: "visitor",
-      content: text,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, tempMsg]);
-
-    try {
-      const turn = await conversationApi.widgetSend(convId, widgetToken, text);
-      setBotStatus(turn.status);
-      setMessages((prev) => {
-        // Replace temp or append returned messages
-        const others = prev.filter((m) => m.id !== tempMsg.id);
-        return [...others, ...turn.messages];
-      });
-    } catch (err: unknown) {
-      console.error(err);
-    } finally {
-      setSending(false);
-    }
-  };
-
   const sendTestMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    void sendText(inputText);
+    const text = inputText.trim();
+    if (!text) return;
+    setInputText("");
+    void sim.send(text);
   };
 
   return (
@@ -113,7 +75,7 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
             className={`embed-tab ${activeTab === "test" ? "is-active" : ""}`}
             onClick={() => {
               setActiveTab("test");
-              if (!convId) void startSimulator();
+              if (!sim.started) void sim.start();
             }}
           >
             Interactive Test
@@ -150,28 +112,28 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
               <div className="simulator-status">
                 <Bot size={16} />
                 <span>{chatbot.name}</span>
-                <span className={`status-pill status-${botStatus}`}>{botStatus}</span>
+                <span className={`status-pill status-${sim.status}`}>{sim.status}</span>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={startSimulator}
-                disabled={testing}
-                icon={<RefreshCw size={13} className={testing ? "spinning" : ""} />}
+                onClick={() => void sim.start()}
+                disabled={sim.busy}
+                icon={<RefreshCw size={13} className={sim.busy ? "spinning" : ""} />}
               >
                 Restart
               </Button>
             </div>
 
             <div className="simulator-messages">
-              {messages.length === 0 && !testing ? (
+              {sim.messages.length === 0 && !sim.busy ? (
                 <div className="simulator-empty">
                   <MessageSquare size={24} />
                   <p>Click Restart to begin a test conversation.</p>
                 </div>
               ) : null}
 
-              {messages.map((m) => (
+              {sim.messages.map((m) => (
                 <div key={m.id || m.ordinal} className={`sim-bubble is-${m.role}`}>
                   <span className="sim-role">{m.role === "visitor" ? "You" : m.role === "agent" ? "Agent" : "Bot"}</span>
                   <div className="sim-text">
@@ -179,15 +141,15 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
                   </div>
                 </div>
               ))}
-              {messages.length > 0 && messages[messages.length - 1].meta?.options?.length ? (
+              {sim.messages.length > 0 && sim.messages[sim.messages.length - 1].meta?.options?.length ? (
                 <div className="sim-options">
-                  {messages[messages.length - 1].meta!.options!.map((option) => (
+                  {sim.messages[sim.messages.length - 1].meta!.options!.map((option) => (
                     <button
                       key={option}
                       type="button"
                       className="sim-opt-btn"
-                      disabled={sending || botStatus === "closed"}
-                      onClick={() => void sendText(option)}
+                      disabled={sim.busy || sim.status === "closed"}
+                      onClick={() => void sim.send(option)}
                     >
                       {option}
                     </button>
@@ -200,15 +162,15 @@ export function WidgetEmbedDialog({ open, chatbot, onClose }: Props) {
             <form className="simulator-input-row" onSubmit={sendTestMessage}>
               <input
                 type="text"
-                placeholder={botStatus === "closed" ? "Conversation is closed" : "Type a response..."}
+                placeholder={sim.status === "closed" ? "Conversation is closed" : "Type a response..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                disabled={!convId || botStatus === "closed" || sending}
+                disabled={!sim.started || sim.status === "closed" || sim.busy}
               />
               <Button
                 size="sm"
                 variant="primary"
-                disabled={!inputText.trim() || !convId || sending || botStatus === "closed"}
+                disabled={!inputText.trim() || !sim.started || sim.busy || sim.status === "closed"}
                 icon={<Send size={14} />}
               >
                 Send

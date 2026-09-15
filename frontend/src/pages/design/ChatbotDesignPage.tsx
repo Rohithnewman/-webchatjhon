@@ -19,7 +19,10 @@ import { useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot, FlowDocument } from "../../entities/chatbot/types";
+import type { MessageMeta } from "../../entities/conversation";
 import { useMe } from "../../entities/me/api";
+import { MessageBody } from "../../features/conversations-inbox/MessageBody";
+import { useWidgetSimulator } from "../../features/widget-embed/use-widget-simulator";
 import { ReadOnlyBanner, useToast } from "../../shared/ui";
 import { AmbotShell } from "../../widgets/navigation/AmbotShell";
 
@@ -64,6 +67,8 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
   const queryClient = useQueryClient();
   const { me, can, isReady } = useMe();
   const readOnly = isReady && !can("features:use");
+  const sim = useWidgetSimulator(selectedChatbot?.id ?? null);
+  const isPublished = selectedChatbot?.status === "published";
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customColorInputRef = useRef<HTMLInputElement>(null);
@@ -101,13 +106,16 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
   const [followUpQuestion, setFollowUpQuestion] = useState("May I have your name please? 🙏");
   const [inputPlaceholder, setInputPlaceholder] = useState("Type your answer...");
 
-  // Simulator & interactive test chat in preview
+  // Simulator & interactive test chat in preview — runs the real flow once published
   const [testInput, setTestInput] = useState("");
-  const [isBotTyping, setIsBotTyping] = useState(false);
-  const [simMessages, setSimMessages] = useState<Array<{ role: string; text: string }>>([
+  const simMessages: Array<{ role: "bot" | "user"; text: string; meta?: MessageMeta }> = [
     { role: "bot", text: welcomeMessage },
-    { role: "bot", text: followUpQuestion },
-  ]);
+    ...sim.messages.map((m) => ({
+      role: m.role === "visitor" ? ("user" as const) : ("bot" as const),
+      text: m.content,
+      meta: m.meta,
+    })),
+  ];
 
   // Keep bot name in sync if chatbot loads
   useEffect(() => {
@@ -159,64 +167,33 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
       if (savedDesign.welcomeMessage) setWelcomeMessage(savedDesign.welcomeMessage);
       if (savedDesign.followUpQuestion) setFollowUpQuestion(savedDesign.followUpQuestion);
       if (savedDesign.inputPlaceholder) setInputPlaceholder(savedDesign.inputPlaceholder);
-
-      // Refresh simulator with saved messages
-      setSimMessages([
-        { role: "bot", text: savedDesign.welcomeMessage || welcomeMessage },
-        { role: "bot", text: savedDesign.followUpQuestion || followUpQuestion },
-      ]);
     }
   }, [flowQuery.data?.definition, selectedChatbot?.id]);
-
-  // Update simulator when welcome or question text changes in Content tab
-  const handleWelcomeChange = (val: string) => {
-    setWelcomeMessage(val);
-    setSimMessages((prev) => {
-      const rest = prev.slice(1);
-      return [{ role: "bot", text: val }, ...rest];
-    });
-  };
-
-  const handleQuestionChange = (val: string) => {
-    setFollowUpQuestion(val);
-    setSimMessages((prev) => {
-      if (prev.length <= 1) return [...prev, { role: "bot", text: val }];
-      return [prev[0], { role: "bot", text: val }, ...prev.slice(2)];
-    });
-  };
 
   // Scroll preview to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [simMessages, isBotTyping]);
+  }, [sim.messages, sim.busy]);
 
-  // Handle sending a test message in the live interactive preview
-  const handleSendSim = (e: React.FormEvent) => {
+  // Handle sending a test message in the live interactive preview — runs the real flow
+  const handleSendSim = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testInput.trim()) return;
     const text = testInput.trim();
     setTestInput("");
 
-    setSimMessages((prev) => [...prev, { role: "user", text }]);
-    setIsBotTyping(true);
-
-    setTimeout(() => {
-      setIsBotTyping(false);
-      setSimMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          text: `Thank you! I received: "${text}". Our live support team or AI will respond to you right away!`,
-        },
-      ]);
-    }, 700);
+    if (selectedChatbot?.status !== "published") {
+      toast.error("Publish the chatbot to test the real flow in the preview");
+      return;
+    }
+    if (!sim.started) await sim.start();
+    await sim.send(text);
   };
 
-  const handleResetPreview = () => {
-    setSimMessages([
-      { role: "bot", text: welcomeMessage },
-      { role: "bot", text: followUpQuestion },
-    ]);
+  const handleResetPreview = async () => {
+    if (selectedChatbot?.status === "published") {
+      await sim.start();
+    }
     setIsMinimized(false);
     toast.success("Preview conversation reset");
   };
@@ -225,6 +202,11 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
   const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 200 * 1024) {
+      toast.error("Avatar must be under 200 KB");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (event) => {
       if (typeof event.target?.result === "string") {
@@ -312,10 +294,6 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
       setWelcomeMessage(d.welcomeMessage || welcomeMessage);
       setFollowUpQuestion(d.followUpQuestion || followUpQuestion);
       setInputPlaceholder(d.inputPlaceholder || "Type your answer...");
-      setSimMessages([
-        { role: "bot", text: d.welcomeMessage || welcomeMessage },
-        { role: "bot", text: d.followUpQuestion || followUpQuestion },
-      ]);
     }
     toast.success("Changes discarded");
   };
@@ -757,23 +735,23 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                 </div>
 
                 <div className="control-group">
-                  <label className="control-label">Welcome Message</label>
+                  <label className="control-label">Greeting (shown when the widget opens, before the flow starts)</label>
                   <textarea
                     className="design-textarea"
                     rows={6}
                     value={welcomeMessage}
-                    onChange={(e) => handleWelcomeChange(e.target.value)}
+                    onChange={(e) => setWelcomeMessage(e.target.value)}
                     placeholder="First greeting message..."
                   />
                 </div>
 
                 <div className="control-group">
-                  <label className="control-label">First Prompt Question</label>
+                  <label className="control-label">Launcher teaser (bubble beside the chat button)</label>
                   <input
                     type="text"
                     className="design-text-input"
                     value={followUpQuestion}
-                    onChange={(e) => handleQuestionChange(e.target.value)}
+                    onChange={(e) => setFollowUpQuestion(e.target.value)}
                     placeholder="e.g. May I have your name please? 🙏"
                   />
                 </div>
@@ -822,10 +800,13 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
               </div>
 
               <div className="browser-bar-actions">
+                {!isPublished && (
+                  <span className="preview-hint-pill">Preview only — publish to chat with the real flow</span>
+                )}
                 <button
                   type="button"
                   className="btn-reset-preview"
-                  onClick={handleResetPreview}
+                  onClick={() => void handleResetPreview()}
                   title="Reset conversation test"
                 >
                   <RotateCcw size={12} />
@@ -921,12 +902,36 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                                   : { backgroundColor: "#ffffff", color: "#1e293b" }
                               }
                             >
-                              {m.text}
+                              {m.role === "bot" ? (
+                                <MessageBody
+                                  message={{ id: `sim-${idx}`, ordinal: idx, role: "bot", content: m.text, meta: m.meta, created_at: "" }}
+                                />
+                              ) : (
+                                m.text
+                              )}
                             </div>
                           </div>
                         ))}
 
-                        {isBotTyping && (
+                        {simMessages.length > 0 &&
+                        simMessages[simMessages.length - 1].role === "bot" &&
+                        simMessages[simMessages.length - 1].meta?.options?.length ? (
+                          <div className="sim-options">
+                            {simMessages[simMessages.length - 1].meta!.options!.map((option) => (
+                              <button
+                                key={option}
+                                type="button"
+                                className="sim-opt-btn"
+                                disabled={sim.busy || sim.status === "closed"}
+                                onClick={() => void sim.send(option)}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {sim.busy && (
                           <div className="widget-bubble-wrap is-bot">
                             <div
                               className="bot-avatar-circle"
@@ -944,7 +949,7 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                         <div ref={messagesEndRef} />
                       </div>
 
-                      <form className="widget-input-footer" onSubmit={handleSendSim}>
+                      <form className="widget-input-footer" onSubmit={(e) => void handleSendSim(e)}>
                         <input
                           type="text"
                           placeholder={inputPlaceholder}
@@ -965,19 +970,30 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                       </form>
                     </div>
                   ) : (
-                    // Floating launcher bubble when minimized
-                    <div
-                      className={`preview-launcher-bubble pos-${positionWeb}`}
-                      style={{ backgroundColor: themeColor }}
-                      onClick={() => setIsMinimized(false)}
-                      title="Open Chat"
-                    >
-                      {selectedAvatar === "custom" && customAvatarUrl ? (
-                        <img src={customAvatarUrl} alt="Bot" />
-                      ) : (
-                        <MessageSquare size={26} />
+                    <>
+                      {followUpQuestion && (
+                        <div
+                          className={`preview-teaser-bubble pos-${positionWeb}`}
+                          onClick={() => setIsMinimized(false)}
+                          title="Open Chat"
+                        >
+                          {followUpQuestion}
+                        </div>
                       )}
-                    </div>
+                      {/* Floating launcher bubble when minimized */}
+                      <div
+                        className={`preview-launcher-bubble pos-${positionWeb}`}
+                        style={{ backgroundColor: themeColor }}
+                        onClick={() => setIsMinimized(false)}
+                        title="Open Chat"
+                      >
+                        {selectedAvatar === "custom" && customAvatarUrl ? (
+                          <img src={customAvatarUrl} alt="Bot" />
+                        ) : (
+                          <MessageSquare size={26} />
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               ) : (
@@ -1025,12 +1041,36 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                                 : { backgroundColor: "#ffffff", color: "#1e293b" }
                             }
                           >
-                            {m.text}
+                            {m.role === "bot" ? (
+                              <MessageBody
+                                message={{ id: `sim-${idx}`, ordinal: idx, role: "bot", content: m.text, meta: m.meta, created_at: "" }}
+                              />
+                            ) : (
+                              m.text
+                            )}
                           </div>
                         </div>
                       ))}
 
-                      {isBotTyping && (
+                      {simMessages.length > 0 &&
+                      simMessages[simMessages.length - 1].role === "bot" &&
+                      simMessages[simMessages.length - 1].meta?.options?.length ? (
+                        <div className="sim-options">
+                          {simMessages[simMessages.length - 1].meta!.options!.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              className="sim-opt-btn"
+                              disabled={sim.busy || sim.status === "closed"}
+                              onClick={() => void sim.send(option)}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {sim.busy && (
                         <div className="landing-msg-row is-bot">
                           <div
                             className="bot-avatar-circle"
@@ -1048,7 +1088,7 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
                       <div ref={messagesEndRef} />
                     </div>
 
-                    <form className="landing-input-footer" onSubmit={handleSendSim}>
+                    <form className="landing-input-footer" onSubmit={(e) => void handleSendSim(e)}>
                       <input
                         type="text"
                         placeholder={inputPlaceholder}

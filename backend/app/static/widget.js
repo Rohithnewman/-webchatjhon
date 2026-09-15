@@ -54,7 +54,10 @@
     ".wcb-media{max-width:100%;border-radius:8px;display:block}iframe.wcb-media{width:100%;aspect-ratio:16/9;border:0}" +
     ".wcb-options{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:90%}" +
     ".wcb-opt{border:1px solid " + ACCENT + ";color:" + ACCENT + ";background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer}" +
-    ".wcb-opt-on,.wcb-opt-done{background:" + ACCENT + ";color:#fff}";
+    ".wcb-opt-on,.wcb-opt-done{background:" + ACCENT + ";color:#fff}" +
+    ".wcb-avatar{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-right:10px;overflow:hidden;font-size:14px;font-weight:700}.wcb-avatar img{width:100%;height:100%;object-fit:cover}" +
+    ".wcb-row{display:flex;gap:6px;align-items:flex-end}" +
+    ".wcb-teaser{position:absolute;bottom:68px;right:0;background:#fff;color:#1c1c28;border:1px solid #e6e6ef;border-radius:12px;padding:8px 12px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.15);max-width:240px;cursor:pointer}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
@@ -84,33 +87,68 @@
   document.head.appendChild(overrides);
 
   var SIZES = { S: [320, 440], M: [360, 520], L: [400, 600], XL: [440, 660], XXL: [480, 720] };
+  var AVATARS = { ambot: "A", avatar1: "👨‍💼", avatar2: "🧔", avatar3: "🧑‍🦱", avatar4: "👨‍💻", robot: "🤖" };
+  var design = {};
+
+  function avatarNode(d) {
+    var wrap = document.createElement("span");
+    wrap.className = "wcb-avatar";
+    if (d.selectedAvatar === "custom" && d.customAvatarUrl) {
+      var img = document.createElement("img"); img.src = d.customAvatarUrl; img.alt = "";
+      wrap.appendChild(img);
+    } else {
+      wrap.textContent = AVATARS[d.selectedAvatar] || AVATARS.ambot;
+    }
+    return wrap;
+  }
 
   function applyDesign(d) {
-    d = d || {};
-    var accent = d.themeColor || ACCENT;
-    head.style.background = accent;
+    design = d || {};
+    var accent = design.themeColor || ACCENT;
+    var classic = design.styleMode === "classic";
+    head.style.background = classic ? "#ffffff" : accent;
+    head.style.color = classic ? "#1c1c28" : "#ffffff";
+    head.style.borderBottom = classic ? "1px solid #e6e6ef" : "none";
     bubble.style.background = accent;
     sendButton.style.color = accent;
     overrides.textContent =
       ".wcb-msg.visitor{background:" + accent + "}.wcb-msg.agent{border-color:" + accent + "}" +
-      ".wcb-opt{border-color:" + accent + ";color:" + accent + "}.wcb-opt-on,.wcb-opt-done{background:" + accent + ";color:#fff}";
-    if (d.chatBgColor) log.style.background = d.chatBgColor;
-    if (d.fontFamily) root.style.fontFamily = d.fontFamily;
-    if (d.botTitle) title.textContent = d.botTitle;
-    subtitle.textContent = d.botStatusText || "";
-    if (d.inputPlaceholder) input.placeholder = d.inputPlaceholder;
-    if (d.positionWeb === "left") {
-      root.style.right = "auto";
-      root.style.left = "20px";
-      panel.style.right = "auto";
-      panel.style.left = "0";
+      ".wcb-opt{border-color:" + accent + ";color:" + accent + "}.wcb-opt-on,.wcb-opt-done{background:" + accent + ";color:#fff}" +
+      ".wcb-avatar{background:" + (classic ? accent : "rgba(255,255,255,.25)") + "}" +
+      "@media (max-width:480px){.wcb-root{left:" + (design.positionMobile === "left" ? "16px" : "auto") + ";right:" + (design.positionMobile === "left" ? "auto" : "16px") + "}}";
+    if (design.chatBgColor) log.style.background = design.chatBgColor;
+    if (design.fontFamily) root.style.fontFamily = design.fontFamily;
+    if (design.botTitle) title.textContent = design.botTitle;
+    subtitle.textContent = design.botStatusText || "";
+    if (design.inputPlaceholder) input.placeholder = design.inputPlaceholder;
+    var headAvatar = head.querySelector(".wcb-avatar");
+    if (headAvatar) headAvatar.remove();
+    head.insertBefore(avatarNode(design), head.firstChild);
+    bubble.innerHTML = "";
+    bubble.appendChild(design.selectedAvatar === "custom" && design.customAvatarUrl ? avatarNode(design) : document.createTextNode("💬"));
+    if (design.positionWeb === "left") {
+      root.style.right = "auto"; root.style.left = "20px"; panel.style.right = "auto"; panel.style.left = "0";
+    } else if (design.positionWeb === "center") {
+      root.style.right = "auto"; root.style.left = "50%"; root.style.transform = "translateX(-50%)";
+      panel.style.right = "auto"; panel.style.left = "50%"; panel.style.transform = "translateX(-50%)";
     }
-    var size = d.windowSize === "Custom" ? [d.customWidth || 360, d.customHeight || 520] : SIZES[d.windowSize];
-    if (size) {
-      panel.style.width = size[0] + "px";
-      panel.style.height = size[1] + "px";
-    }
+    var size = design.windowSize === "Custom" ? [design.customWidth || 360, design.customHeight || 520] : SIZES[design.windowSize];
+    if (size) { panel.style.width = size[0] + "px"; panel.style.height = size[1] + "px"; }
+    panel.style.resize = design.enableResize ? "both" : "none";
+    panel.style.overflow = design.enableResize ? "auto" : "hidden";
+    showTeaser(design.followUpQuestion);
   }
+
+  var teaser = document.createElement("div");
+  teaser.className = "wcb-teaser";
+  teaser.hidden = true;
+  root.appendChild(teaser);
+  function showTeaser(text) {
+    if (!text || state.open) { teaser.hidden = true; return; }
+    teaser.textContent = text;
+    teaser.hidden = false;
+  }
+  teaser.addEventListener("click", function () { bubble.click(); });
 
   function loadProfile() {
     request("GET", "/widget/chatbots/" + CHATBOT_ID, null, function (status, payload) {
@@ -149,7 +187,15 @@
     } else {
       el.textContent = content;
     }
-    log.appendChild(el);
+    if (role === "bot") {
+      var row = document.createElement("div");
+      row.className = "wcb-row";
+      row.appendChild(avatarNode(design));
+      row.appendChild(el);
+      log.appendChild(row);
+    } else {
+      log.appendChild(el);
+    }
     if (meta.options && meta.options.length) renderOptions(meta.options, !!meta.multiple);
     if (meta.inputType) setInputType(meta.inputType);
     log.scrollTop = log.scrollHeight;
@@ -244,6 +290,7 @@
   function start() {
     if (state.conversationId || state.busy) return;
     state.busy = true;
+    if (design.welcomeMessage) render("bot", design.welcomeMessage, {});
     render("system", "Connecting…");
     request("POST", "/widget/conversations", { chatbot_id: CHATBOT_ID }, function (status, payload) {
       state.busy = false;
@@ -254,6 +301,7 @@
       }
       state.conversationId = payload.data.conversation.id;
       state.token = payload.data.token;
+      if (design.welcomeMessage) render("bot", design.welcomeMessage, {});
       take(payload.data.messages);
       setStatus(payload.data.conversation.status);
     });
@@ -299,6 +347,7 @@
   root.querySelector(".wcb-bubble").addEventListener("click", function () {
     state.open = !state.open;
     panel.classList.toggle("wcb-open", state.open);
+    showTeaser(design.followUpQuestion);
     if (state.open) {
       start();
       input.focus();

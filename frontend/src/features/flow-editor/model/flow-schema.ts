@@ -29,6 +29,7 @@ export const flowDocumentSchema = z.object({
     y: z.number(),
     zoom: z.number().min(0.1).max(4),
   }).default({ x: 0, y: 0, zoom: 1 }),
+  design: z.record(z.string(), z.unknown()).optional(),
 }).superRefine((flow, context) => {
   const starts = flow.nodes.filter((node) => node.type === "start");
   if (starts.length !== 1) {

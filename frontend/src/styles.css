@@ -2817,6 +2817,16 @@ input:checked + .slider:before {
   color: #0f172a;
 }
 
+.preview-hint-pill {
+  font-size: 10px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
 .browser-viewport {
   flex: 1;
   overflow: hidden;
@@ -3174,6 +3184,26 @@ input:checked + .slider:before {
   height: 100%;
   object-fit: cover;
 }
+
+/* Launcher teaser bubble (mirrors widget.js .wcb-teaser) */
+.preview-teaser-bubble {
+  position: absolute;
+  bottom: 84px;
+  background: #ffffff;
+  color: #1c1c28;
+  border: 1px solid #e6e6ef;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  max-width: 200px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 11;
+}
+
+.preview-teaser-bubble.pos-right { right: 24px; left: auto; }
+.preview-teaser-bubble.pos-left { left: 24px; right: auto; }
+.preview-teaser-bubble.pos-center { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* Landing Page Bot Preview */
 .landing-bot-wrapper {

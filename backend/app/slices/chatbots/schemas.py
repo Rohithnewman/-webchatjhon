@@ -74,6 +74,11 @@ class FlowDocument(BaseModel):
             raise ValueError("start node cannot have incoming edges")
         if any(edge.source in end_ids for edge in self.edges):
             raise ValueError("end nodes cannot have outgoing edges")
+
+        import json
+
+        if len(json.dumps(self.design)) > 300_000:
+            raise ValueError("design settings are too large (keep the avatar under 200 KB)")
         return self
 
 
