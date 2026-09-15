@@ -51,20 +51,28 @@ async def test_admin_routes_are_superadmin_only(client, session):
 
 async def test_stats_and_organizations_span_every_tenant(client, session):
     root = await _superadmin(client, session)
+
+    # The test database is shared and session-scoped; other tests (e.g.
+    # tests/test_concurrency.py) commit real rows on raw sessions that are
+    # never rolled back. So this asserts deltas around the actions below,
+    # not exact platform-wide totals.
+    before = (await client.get("/api/v1/admin/stats", headers=_headers(root))).json()["data"]
+    before_orgs = (await client.get("/api/v1/admin/organizations", headers=_headers(root))).json()["data"]
+
     acme = await _register(client, "a@acme.test", "Acme")
     await _register(client, "b@bolt.test", "Bolt")
     await client.post("/api/v1/chatbots", json={"name": "Bot"}, headers=_headers(acme))
 
-    stats = (await client.get("/api/v1/admin/stats", headers=_headers(root))).json()["data"]
-    assert stats["organizations"] == 3  # Platform, Acme, Bolt
-    assert stats["workspaces"] == 3
-    assert stats["users"] == 3
-    assert stats["chatbots"] == 1
-    assert stats["conversations"] == 0
+    after = (await client.get("/api/v1/admin/stats", headers=_headers(root))).json()["data"]
+    assert after["organizations"] - before["organizations"] == 2  # Acme, Bolt
+    assert after["workspaces"] - before["workspaces"] == 2
+    assert after["users"] - before["users"] == 2
+    assert after["chatbots"] - before["chatbots"] == 1
+    assert after["conversations"] - before["conversations"] == 0
 
     orgs = (await client.get("/api/v1/admin/organizations", headers=_headers(root))).json()["data"]
     by_name = {org["name"]: org for org in orgs}
-    assert set(by_name) == {"Platform", "Acme", "Bolt"}
+    assert {"Platform", "Acme", "Bolt"} <= set(by_name)
     assert by_name["Acme"]["workspace_count"] == 1
     assert by_name["Acme"]["member_count"] == 1
     assert by_name["Acme"]["plan"] == "free"
