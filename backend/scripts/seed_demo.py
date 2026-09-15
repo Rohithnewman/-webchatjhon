@@ -56,11 +56,17 @@ def main() -> int:
             return reg.json()["data"]
         login = client.post("/auth/login", json={"email": email, "password": password})
         if login.status_code >= 400:
-            print(
-                f"Account {email} already exists with a different password. Either re-run with "
-                f"--owner-password <your password>, or align it with: python -m scripts.set_password "
-                f"--email {email} --password <new password>"
-            )
+            if email == OWNER_EMAIL:
+                print(
+                    f"Account {email} already exists with a different password. Either re-run with "
+                    f"--owner-password <your password>, or align it with: python -m scripts.set_password "
+                    f"--email {email} --password <new password>"
+                )
+            else:
+                print(
+                    f"Account {email} already exists with a different password. Align it with: "
+                    f"python -m scripts.set_password --email {email} --password <new password>"
+                )
             sys.exit(1)
         print("logged in as", email)
         return login.json()["data"]

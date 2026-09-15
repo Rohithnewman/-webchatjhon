@@ -77,7 +77,9 @@ This creates the accounts below, a knowledge base with an FAQ document, three pu
 | `demo@northwind.example` | `DemoPass123` | owner of a second organisation, **Northwind Outdoor**, so the superadmin console lists more than one tenant |
 
 Superadmin console: log in as admin@admin.com → the shield icon in the left rail.
+
 Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
+
 Workspace roles: agent@rogith.example (member) can build and reply; viewer@rogith.example sees a read-only dashboard.
 
 If rohithnewman@gmail.com already exists in your database with another password, either run the seed with `--owner-password <your password>` or align it first with `python -m scripts.set_password --email rohithnewman@gmail.com --password Rogith@12345`.

@@ -1,6 +1,6 @@
 # 10-minute demonstration script
 
-Before the session: run `scripts\start-demo.ps1`, wait for all three windows, run the seed script, keep its three printed URLs handy. Open two browser windows side by side: dashboard (left) and the customer page (right). Log in as demo@northwind.example / DemoPass123.
+Before the session: run `scripts\start-demo.ps1`, wait for all three windows, run the seed script, keep its three printed URLs handy. Open two browser windows side by side: dashboard (left) and the customer page (right). Log in as rohithnewman@gmail.com / Rogith@12345 (or the password you set with --owner-password).
 
 ## 1. The problem and the product (1 min)
 "Businesses want a chatbot on their website without writing code, without sending their data to a vendor they don't control, and with a human able to step in. This platform lets a company design the conversation visually, plug in its own documents and its own AI key, and install it with one script tag."
@@ -10,7 +10,7 @@ Show the workspace name, the owner, and the agent member. Point out roles. Open 
 
 ## 2a. Three levels of administration (1 min)
 - Log in as **admin@admin.com** (superadmin): Admin → Overview shows every organisation, workspace, user, bot and conversation on the platform; Organisations tab changes Rogith's plan to "pro"; Users tab can deactivate an account. Point out: the superadmin sees *metadata*, never a tenant's conversations.
-- Log in as **rohithnewman@gmail.com** (organisation owner): Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
+- Log back in as **rohithnewman@gmail.com** (organisation owner) — the account you started the session with: Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
 - Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
 
 ## 3. Bring your own AI key (30 s) — Settings → AI Providers
