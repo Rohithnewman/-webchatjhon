@@ -5889,8 +5889,8 @@ Accounts to exist after seeding (passwords live only in the seed script and the 
 |---|---|---|
 | `admin@admin.com` | `AdminPassword123!` | platform **superadmin** (also owner of a private "Platform / Admin" workspace so login works) |
 | `rohithnewman@gmail.com` — name **rogith** | `Rogith@12345` *(assumption: no password was given; change `OWNER_PASSWORD` in the script if you want another)* | **owner** of organisation **Rogith** (org admin), workspace "Default", plus a second workspace "Sales" |
-| `agent@rogith.test` | `AgentPass123` | **member** in Rogith / Default — the live agent for the handoff demo |
-| `viewer@rogith.test` | `ViewerPass123` | **viewer** in Rogith / Default — shows the read-only UI |
+| `agent@rogith.example` | `AgentPass123` | **member** in Rogith / Default — the live agent for the handoff demo |
+| `viewer@rogith.example` | `ViewerPass123` | **viewer** in Rogith / Default — shows the read-only UI |
 | `demo@northwind.example` | `DemoPass123` | owner of a second organisation, **Northwind Outdoor**, so the superadmin console lists more than one tenant |
 
 **Files:**
@@ -5911,9 +5911,9 @@ OWNER_PASSWORD = "Rogith@12345"
 OWNER_NAME = "rogith"
 OWNER_ORG = "Rogith"
 
-AGENT_EMAIL = "agent@rogith.test"
+AGENT_EMAIL = "agent@rogith.example"
 AGENT_PASSWORD = "AgentPass123"
-VIEWER_EMAIL = "viewer@rogith.test"
+VIEWER_EMAIL = "viewer@rogith.example"
 VIEWER_PASSWORD = "ViewerPass123"
 
 NORTHWIND_EMAIL = "demo@northwind.example"
@@ -5945,7 +5945,7 @@ Replace the "Demo data" section's account line with the five-row table above (wi
 ```
 Superadmin console: log in as admin@admin.com → the shield icon in the left rail.
 Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
-Workspace roles: agent@rogith.test (member) can build and reply; viewer@rogith.test sees a read-only dashboard.
+Workspace roles: agent@rogith.example (member) can build and reply; viewer@rogith.example sees a read-only dashboard.
 ```
 
 - [ ] **Step 3: Walkthrough additions**
@@ -5956,7 +5956,7 @@ In `docs/DEMO_WALKTHROUGH.md` insert after section 2:
 ## 2a. Three levels of administration (1 min)
 - Log in as **admin@admin.com** (superadmin): Admin → Overview shows every organisation, workspace, user, bot and conversation on the platform; Organisations tab changes Rogith's plan to "pro"; Users tab can deactivate an account. Point out: the superadmin sees *metadata*, never a tenant's conversations.
 - Log in as **rohithnewman@gmail.com** (organisation owner): Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
-- Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.test**: the builder shows the read-only banner, the Inbox has no reply box.
+- Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
 ```
 
 and in section 7 add: "Choose an option by clicking a button instead of typing; the email step switches the keyboard to an email field; the image step renders inline."
