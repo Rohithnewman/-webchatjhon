@@ -3,12 +3,15 @@ import { BookOpen, FileText, Plus, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { knowledgeApi } from "../../entities/knowledge/api";
-import { Button, Field, Input, LoadingState, Panel, useToast } from "../../shared/ui";
+import { useMe } from "../../entities/me/api";
+import { Button, Field, Input, LoadingState, Panel, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 export function KnowledgePage() {
   const toast = useToast();
   const client = useQueryClient();
+  const { me, can } = useMe();
+  const readOnly = !can("features:use");
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -52,29 +55,32 @@ export function KnowledgePage() {
 
   return (
     <DashboardShell title="Knowledge Bases" subtitle="Upload documents (PDF, DOCX, TXT, MD, HTML). They are chunked and embedded in the background and searched by the Knowledge node.">
+      {readOnly && <ReadOnlyBanner role={me?.role} />}
       <div className="knowledge-grid">
             <div className="knowledge-sidebar">
-              <Panel>
-                <Panel.Header title="Create Knowledge Base" />
-                <Panel.Body>
-                  <Field label="Name">
-                    <Input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="e.g. Product Documentation"
-                    />
-                  </Field>
-                  <Button
-                    variant="primary"
-                    disabled={!name.trim() || create.isPending}
-                    loading={create.isPending}
-                    onClick={() => create.mutate()}
-                    icon={<Plus size={15} />}
-                  >
-                    Create
-                  </Button>
-                </Panel.Body>
-              </Panel>
+              {!readOnly && (
+                <Panel>
+                  <Panel.Header title="Create Knowledge Base" />
+                  <Panel.Body>
+                    <Field label="Name">
+                      <Input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="e.g. Product Documentation"
+                      />
+                    </Field>
+                    <Button
+                      variant="primary"
+                      disabled={!name.trim() || create.isPending}
+                      loading={create.isPending}
+                      onClick={() => create.mutate()}
+                      icon={<Plus size={15} />}
+                    >
+                      Create
+                    </Button>
+                  </Panel.Body>
+                </Panel>
+              )}
 
               <Panel>
                 <Panel.Header title="Your Knowledge Bases" />
@@ -108,20 +114,22 @@ export function KnowledgePage() {
                   <Panel.Header
                     title={`Documents: ${selectedBase.name}`}
                     actions={
-                      <label className="upload-btn-label">
-                        <Upload size={15} />
-                        <span>Upload File</span>
-                        <input
-                          type="file"
-                          accept=".txt,.md,.html,.csv,.pdf,.docx"
-                          style={{ display: "none" }}
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) upload.mutate(file);
-                            event.target.value = "";
-                          }}
-                        />
-                      </label>
+                      readOnly ? undefined : (
+                        <label className="upload-btn-label">
+                          <Upload size={15} />
+                          <span>Upload File</span>
+                          <input
+                            type="file"
+                            accept=".txt,.md,.html,.csv,.pdf,.docx"
+                            style={{ display: "none" }}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) upload.mutate(file);
+                              event.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )
                     }
                   />
                   <Panel.Body>

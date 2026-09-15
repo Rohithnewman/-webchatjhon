@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
+import { useMe } from "../../entities/me/api";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { TemplatesDialog } from "../../features/flow-templates/TemplatesDialog";
 import { LoadingState } from "../../shared/ui";
@@ -23,6 +24,8 @@ export function AmbotShell({ children }: Props) {
   const { chatbotId } = useParams();
   const [createOpen, setCreateOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const { can } = useMe();
+  const readOnly = !can("features:use");
 
   const chatbotsQuery = useQuery({
     queryKey: ["chatbots"],
@@ -48,7 +51,7 @@ export function AmbotShell({ children }: Props) {
         chatbots={chatbots}
         selectedChatbot={selectedChatbot}
         onSelectChatbot={handleSelectBot}
-        onCreateNewBot={() => setCreateOpen(true)}
+        onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
         onOpenTemplates={() => setTemplatesOpen(true)}
       />
 

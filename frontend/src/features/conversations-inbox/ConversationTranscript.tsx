@@ -16,6 +16,7 @@ interface Props {
   closing: boolean;
   onSendReply: (content: string) => void;
   onCloseConversation: () => void;
+  readOnly?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -73,6 +74,7 @@ export function ConversationTranscript({
   closing,
   onSendReply,
   onCloseConversation,
+  readOnly = false,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -146,11 +148,17 @@ export function ConversationTranscript({
         )}
       </div>
 
-      <LiveAgentInput
-        status={conversation.status}
-        sending={sending}
-        onSend={onSendReply}
-      />
+      {readOnly ? (
+        <div className="agent-input-bar is-closed">
+          <span>Only members can reply</span>
+        </div>
+      ) : (
+        <LiveAgentInput
+          status={conversation.status}
+          sending={sending}
+          onSend={onSendReply}
+        />
+      )}
     </div>
   );
 }

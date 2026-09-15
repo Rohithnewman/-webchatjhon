@@ -30,6 +30,7 @@ interface Props {
   onSwitchToVisual: () => void;
   onOpenTest: () => void;
   onOpenInstall: () => void;
+  readOnly?: boolean;
 }
 
 export function ClassicBuilder({
@@ -39,6 +40,7 @@ export function ClassicBuilder({
   onSwitchToVisual,
   onOpenTest,
   onOpenInstall,
+  readOnly = false,
 }: Props) {
   const nodes = flowDoc.nodes || [];
   const edges = flowDoc.edges || [];
@@ -51,6 +53,7 @@ export function ClassicBuilder({
 
   // Helper to add component in classic mode
   const handleAddComponent = (type: string, defaultData: any) => {
+    if (readOnly) return;
     const newId = `node_${Date.now()}`;
     const newNode: FlowNode = {
       id: newId,
@@ -82,6 +85,7 @@ export function ClassicBuilder({
 
   // Helper to update selected node text or prompt
   const handleUpdateSelected = (patch: any) => {
+    if (readOnly) return;
     if (!selectedNode) return;
     const updatedNodes = nodes.map((n) =>
       n.id === selectedNode.id ? { ...n, data: { ...n.data, ...patch } } : n
@@ -91,6 +95,7 @@ export function ClassicBuilder({
 
   // Helper to set next target step for routing
   const handleSetNextTarget = (targetId: string) => {
+    if (readOnly) return;
     if (!selectedNode) return;
     const filteredEdges = edges.filter((e) => e.source !== selectedNode.id);
     if (targetId) {
@@ -476,7 +481,11 @@ export function ClassicBuilder({
         </div>
 
         {/* Column 3: Customize Bot Messages */}
-        <div className="classic-col col-customize-message">
+        <fieldset
+          disabled={readOnly}
+          style={{ border: 0, padding: 0, margin: 0 }}
+          className="classic-col col-customize-message"
+        >
           <div className="classic-col-header">
             <h3>Customize Bot Messages</h3>
           </div>
@@ -577,7 +586,7 @@ export function ClassicBuilder({
               <div className="cust-empty">Select a step in the center to customize it.</div>
             )}
           </div>
-        </div>
+        </fieldset>
       </div>
     </div>
   );

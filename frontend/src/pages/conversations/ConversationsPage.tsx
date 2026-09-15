@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import { conversationApi } from "../../entities/conversation";
+import { useMe } from "../../entities/me/api";
 import { ConversationInbox } from "../../features/conversations-inbox/ConversationInbox";
 import { ConversationTranscript } from "../../features/conversations-inbox/ConversationTranscript";
 import { useToast } from "../../shared/ui";
@@ -11,6 +12,8 @@ import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 export function ConversationsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { can } = useMe();
+  const readOnly = !can("features:use");
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -109,6 +112,7 @@ export function ConversationsPage() {
           closing={closeMutation.isPending}
           onSendReply={(content) => replyMutation.mutate(content)}
           onCloseConversation={() => closeMutation.mutate()}
+          readOnly={readOnly}
         />
       </div>
     </DashboardShell>

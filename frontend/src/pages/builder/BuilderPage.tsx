@@ -19,6 +19,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
+import { useMe } from "../../entities/me/api";
 import { useAuthStore } from "../../entities/session/auth-store";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { ClassicBuilder } from "../../features/classic-builder/ClassicBuilder";
@@ -35,7 +36,7 @@ import { ConfigPanel } from "../../features/flow-editor/ui/ConfigPanel";
 import { TemplatesDialog } from "../../features/flow-templates/TemplatesDialog";
 import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import { ApiError } from "../../shared/api/client";
-import { useToast } from "../../shared/ui";
+import { ReadOnlyBanner, useToast } from "../../shared/ui";
 import { FlowCanvas } from "../../widgets/flow-canvas/FlowCanvas";
 import { ChatbotSubNav } from "../../widgets/navigation/ChatbotSubNav";
 import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
@@ -47,6 +48,8 @@ function BuilderWorkspace() {
   const toast = useToast();
   const logout = useAuthStore((state) => state.logout);
   const graph = useFlowGraph();
+  const { me, can } = useMe();
+  const readOnly = !can("features:use");
 
   // Mode: "classic" or "visual"
   const [builderMode, setBuilderMode] = useState<"classic" | "visual">("classic");
@@ -96,7 +99,10 @@ function BuilderWorkspace() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (doc: FlowDocument) => chatbotApi.saveFlow(selectedId!, doc),
+    mutationFn: (doc: FlowDocument) => {
+      if (readOnly) throw new Error("Read-only role");
+      return chatbotApi.saveFlow(selectedId!, doc);
+    },
     onSuccess: async (flow) => {
       graph.markSaved();
       await queryClient.invalidateQueries({ queryKey: ["flow", selectedId] });
@@ -108,7 +114,10 @@ function BuilderWorkspace() {
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (version: number) => chatbotApi.restore(selectedId!, version),
+    mutationFn: (version: number) => {
+      if (readOnly) throw new Error("Read-only role");
+      return chatbotApi.restore(selectedId!, version);
+    },
     onSuccess: async (flow) => {
       graph.load(flow.definition);
       graph.markSaved();
@@ -138,6 +147,7 @@ function BuilderWorkspace() {
       />
 
       <main className="ambot-main-viewport">
+        {readOnly && <ReadOnlyBanner role={me?.role} />}
         {builderMode === "classic" ? (
           // ── CLASSIC BUILDER (3-Column View) ──────────────────────────────────
           <ClassicBuilder
@@ -150,6 +160,7 @@ function BuilderWorkspace() {
             onSwitchToVisual={() => setBuilderMode("visual")}
             onOpenTest={() => setEmbedOpen(true)}
             onOpenInstall={() => navigate(`/chatbots/${selectedId}/install`)}
+            readOnly={readOnly}
           />
         ) : (
           // ── VISUAL FLOW BUILDER (Canvas View) ────────────────────────────────
@@ -188,14 +199,16 @@ function BuilderWorkspace() {
               </div>
 
               <div className="canvas-actions-right">
-                <button
-                  type="button"
-                  className="btn-add-component-main"
-                  onClick={() => setCompModalOpen(true)}
-                >
-                  <Plus size={16} />
-                  <span>+ Add Component</span>
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="btn-add-component-main"
+                    onClick={() => setCompModalOpen(true)}
+                  >
+                    <Plus size={16} />
+                    <span>+ Add Component</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -247,16 +260,18 @@ function BuilderWorkspace() {
               />
 
               {graph.selectedNode && (
-                <ConfigPanel
-                  node={graph.selectedNode}
-                  versions={versionsQuery.data ?? []}
-                  activeTab={panelTab}
-                  onTabChange={setPanelTab}
-                  onChange={graph.updateSelectedNode}
-                  onDelete={graph.deleteSelectedNode}
-                  onRestore={(version) => restoreMutation.mutate(version)}
-                  restoring={restoreMutation.isPending}
-                />
+                <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0 }}>
+                  <ConfigPanel
+                    node={graph.selectedNode}
+                    versions={versionsQuery.data ?? []}
+                    activeTab={panelTab}
+                    onTabChange={setPanelTab}
+                    onChange={graph.updateSelectedNode}
+                    onDelete={graph.deleteSelectedNode}
+                    onRestore={(version) => restoreMutation.mutate(version)}
+                    restoring={restoreMutation.isPending}
+                  />
+                </fieldset>
               )}
             </div>
           </div>

@@ -19,7 +19,8 @@ import { useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot, FlowDocument } from "../../entities/chatbot/types";
-import { useToast } from "../../shared/ui";
+import { useMe } from "../../entities/me/api";
+import { ReadOnlyBanner, useToast } from "../../shared/ui";
 import { AmbotShell } from "../../widgets/navigation/AmbotShell";
 
 // Color presets matching the design specifications
@@ -61,6 +62,8 @@ interface ChatbotDesignPageInnerProps {
 function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { me, can } = useMe();
+  const readOnly = !can("features:use");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customColorInputRef = useRef<HTMLInputElement>(null);
@@ -354,6 +357,8 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
           </button>
         </div>
       </header>
+
+      {readOnly && <ReadOnlyBanner role={me?.role} />}
 
       <div className="design-split-layout">
         {/* ── Left Controls Column ─────────────────────────────────────────── */}
@@ -788,14 +793,14 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
           </div>
 
           <div className="design-controls-footer">
-            <button type="button" className="btn-discard" onClick={handleDiscard}>
+            <button type="button" className="btn-discard" onClick={handleDiscard} disabled={readOnly}>
               Discard
             </button>
             <button
               type="button"
               className="btn-save-changes"
               onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
+              disabled={readOnly || saveMutation.isPending}
             >
               {saveMutation.isPending ? "Saving..." : "Save Changes"}
             </button>

@@ -16,7 +16,7 @@ interface Props {
   chatbots: Chatbot[];
   selectedChatbot: Chatbot | null;
   onSelectChatbot: (id: string) => void;
-  onCreateNewBot: () => void;
+  onCreateNewBot?: () => void;
   onOpenTemplates?: () => void;
 }
 
@@ -35,14 +35,16 @@ export function ChatbotSubNav({
     <aside className="chatbot-sub-sidebar">
       <div className="chatbot-sub-header">
         <h2>Chatbot</h2>
-        <button
-          type="button"
-          className="btn-new-bot-pill"
-          onClick={onCreateNewBot}
-        >
-          <Plus size={15} />
-          <span>New Bot</span>
-        </button>
+        {onCreateNewBot && (
+          <button
+            type="button"
+            className="btn-new-bot-pill"
+            onClick={onCreateNewBot}
+          >
+            <Plus size={15} />
+            <span>New Bot</span>
+          </button>
+        )}
       </div>
 
       <div className="chatbot-selector-section">

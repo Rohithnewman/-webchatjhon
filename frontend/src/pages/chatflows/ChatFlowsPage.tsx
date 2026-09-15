@@ -7,7 +7,8 @@ import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
 import { downloadFlowDocument, readFlowDocument } from "../../features/flow-editor/lib/flow-document";
 import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
-import { useToast } from "../../shared/ui";
+import { useMe } from "../../entities/me/api";
+import { Badge, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { AmbotShell } from "../../widgets/navigation/AmbotShell";
 
 const fmt = (iso: string) =>
@@ -26,6 +27,8 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
   const fileInput = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [embedBot, setEmbedBot] = useState<Chatbot | null>(null);
+  const { me, can } = useMe();
+  const readOnly = !can("features:use");
 
   const flowQuery = useQuery({
     queryKey: ["flow", selectedChatbot?.id],
@@ -74,6 +77,8 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
         </div>
       </header>
 
+      {readOnly && <ReadOnlyBanner role={me?.role} />}
+
       <div className="chatflows-toolbar">
         <div className="chatflows-search-box">
           <Search size={16} className="search-icon" />
@@ -87,9 +92,11 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
             style={{ display: "none" }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f && selectedChatbot) importFlow.mutate(f); e.target.value = ""; }}
           />
-          <button type="button" className="btn-import-flow" disabled={!selectedChatbot || importFlow.isPending} onClick={() => fileInput.current?.click()}>
-            <Upload size={15} /><span>Import Flow (JSON)</span>
-          </button>
+          {!readOnly && (
+            <button type="button" className="btn-import-flow" disabled={!selectedChatbot || importFlow.isPending} onClick={() => fileInput.current?.click()}>
+              <Upload size={15} /><span>Import Flow (JSON)</span>
+            </button>
+          )}
           <button type="button" className="btn-import-flow" disabled={!flow} onClick={() => flow && downloadFlowDocument(flow.definition, selectedChatbot?.name ?? "flow")}>
             <Download size={15} /><span>Export Flow</span>
           </button>
@@ -118,21 +125,29 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
                   <td>{fmt(bot.created_at)}</td>
                   <td>{fmt(bot.updated_at)}</td>
                   <td>
-                    <label className="switch-toggle" title={bot.status === "published" ? "Unpublish" : "Publish"}>
-                      <input type="checkbox" checked={bot.status === "published"} onChange={() => togglePublish.mutate(bot)} />
-                      <span className="slider round" />
-                    </label>
+                    {readOnly ? (
+                      <Badge tone={bot.status === "published" ? "brand" : "neutral"}>
+                        {bot.status === "published" ? "Published" : "Draft"}
+                      </Badge>
+                    ) : (
+                      <label className="switch-toggle" title={bot.status === "published" ? "Unpublish" : "Publish"}>
+                        <input type="checkbox" checked={bot.status === "published"} onChange={() => togglePublish.mutate(bot)} />
+                        <span className="slider round" />
+                      </label>
+                    )}
                   </td>
                   <td>{isSelected ? <span className="version-pill"><History size={13} /> v{bot.current_version ?? 0} · {versionsQuery.data?.length ?? 0} saved</span> : `v${bot.current_version ?? 0}`}</td>
                   <td className="td-actions-cell">
                     <button type="button" className="action-icon-btn is-test" title="Test in simulator" onClick={() => setEmbedBot(bot)}><UserCheck size={16} /></button>
                     <button type="button" className="action-icon-btn" title="Open builder" onClick={() => navigate(`/builder/${bot.id}`)}><Play size={16} /></button>
-                    <button
-                      type="button"
-                      className="action-icon-btn is-delete"
-                      title="Delete chatbot"
-                      onClick={() => { if (window.confirm(`Delete "${bot.name}" and all its flow versions?`)) removeBot.mutate(bot.id); }}
-                    ><Trash2 size={16} /></button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="action-icon-btn is-delete"
+                        title="Delete chatbot"
+                        onClick={() => { if (window.confirm(`Delete "${bot.name}" and all its flow versions?`)) removeBot.mutate(bot.id); }}
+                      ><Trash2 size={16} /></button>
+                    )}
                   </td>
                 </tr>
               );
