@@ -66,7 +66,21 @@ With the three processes running:
 cd backend; .venv\Scripts\python.exe -m scripts.seed_demo
 ```
 
-This creates the login `demo@northwind.example` / `DemoPass123`, an agent account, a knowledge base with an FAQ document, three published bots, and a few conversations. It prints the URL of a fake customer website (`/demo?chatbot_id=…`) with the widget installed. See `docs/DEMO_WALKTHROUGH.md` for a scripted 10-minute demonstration.
+This creates the accounts below, a knowledge base with an FAQ document, three published bots, and a few conversations. It prints the URL of a fake customer website (`/demo?chatbot_id=…`) with the widget installed. See `docs/DEMO_WALKTHROUGH.md` for a scripted 10-minute demonstration.
+
+| Account | Password | What it is |
+|---|---|---|
+| `admin@admin.com` | `AdminPassword123!` | platform **superadmin** (also owner of a private "Platform / Admin" workspace so login works) |
+| `rohithnewman@gmail.com` — name **rogith** | `Rogith@12345` | **owner** of organisation **Rogith** (org admin), workspace "Default", plus a second workspace "Sales" |
+| `agent@rogith.example` | `AgentPass123` | **member** in Rogith / Default — the live agent for the handoff demo |
+| `viewer@rogith.example` | `ViewerPass123` | **viewer** in Rogith / Default — shows the read-only UI |
+| `demo@northwind.example` | `DemoPass123` | owner of a second organisation, **Northwind Outdoor**, so the superadmin console lists more than one tenant |
+
+Superadmin console: log in as admin@admin.com → the shield icon in the left rail.
+Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
+Workspace roles: agent@rogith.example (member) can build and reply; viewer@rogith.example sees a read-only dashboard.
+
+If rohithnewman@gmail.com already exists in your database with another password, either run the seed with `--owner-password <your password>` or align it first with `python -m scripts.set_password --email rohithnewman@gmail.com --password Rogith@12345`.
 
 ## Tests and checks
 

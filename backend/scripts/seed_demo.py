@@ -4,10 +4,11 @@ Usage (backend must be running, worker too for document ingestion):
     .venv\\Scripts\\python.exe -m scripts.seed_demo
     .venv\\Scripts\\python.exe -m scripts.seed_demo --api http://127.0.0.1:8000/api/v1
 
-Demo login afterwards:  demo@northwind.example / DemoPass123
+Demo logins afterwards: see the account table in README.md.
 """
 
 import argparse
+import os
 import sys
 import time
 
@@ -15,29 +16,57 @@ import httpx
 
 from scripts.demo_flows import DEMO_DOCUMENT, faq_knowledge, lead_capture, support_handoff
 
-EMAIL = "demo@northwind.example"
-PASSWORD = "DemoPass123"
-AGENT_EMAIL = "agent@northwind.example"
+SUPERADMIN_EMAIL = "admin@admin.com"
+SUPERADMIN_PASSWORD = "AdminPassword123!"
+
+OWNER_EMAIL = "rohithnewman@gmail.com"
+OWNER_PASSWORD = "Rogith@12345"
+OWNER_NAME = "rogith"
+OWNER_ORG = "Rogith"
+
+AGENT_EMAIL = "agent@rogith.example"
 AGENT_PASSWORD = "AgentPass123"
+VIEWER_EMAIL = "viewer@rogith.example"
+VIEWER_PASSWORD = "ViewerPass123"
+
+NORTHWIND_EMAIL = "demo@northwind.example"
+NORTHWIND_PASSWORD = "DemoPass123"
 
 
 def main() -> int:
+    import asyncio
+
+    from scripts.create_superadmin import ensure as ensure_superadmin
+
+    asyncio.run(ensure_superadmin(SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, "Platform Admin"))
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", default="http://127.0.0.1:8000/api/v1")
+    parser.add_argument("--owner-password", default=os.environ.get("SEED_OWNER_PASSWORD", OWNER_PASSWORD))
     args = parser.parse_args()
     api = args.api.rstrip("/")
+    owner_password = args.owner_password
     client = httpx.Client(base_url=api, timeout=30)
 
-    # 1. Account: register, or log in if the demo user already exists.
-    reg = client.post("/auth/register", json={"email": EMAIL, "password": PASSWORD, "full_name": "Demo Owner", "org_name": "Northwind Outdoor"})
-    if reg.status_code == 201:
-        tokens = reg.json()["data"]
-        print("registered", EMAIL)
-    else:
-        login = client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
-        login.raise_for_status()
-        tokens = login.json()["data"]
-        print("logged in as", EMAIL)
+    def session_for(email, password, name, org) -> dict:
+        # Register, or log in if the account already exists.
+        reg = client.post("/auth/register", json={"email": email, "password": password, "full_name": name, "org_name": org})
+        if reg.status_code == 201:
+            print("registered", email)
+            return reg.json()["data"]
+        login = client.post("/auth/login", json={"email": email, "password": password})
+        if login.status_code >= 400:
+            print(
+                f"Account {email} already exists with a different password. Either re-run with "
+                f"--owner-password <your password>, or align it with: python -m scripts.set_password "
+                f"--email {email} --password <new password>"
+            )
+            sys.exit(1)
+        print("logged in as", email)
+        return login.json()["data"]
+
+    # 1. Account: the Rogith owner drives the rest of this script.
+    tokens = session_for(OWNER_EMAIL, owner_password, OWNER_NAME, OWNER_ORG)
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
     def post(path, **kwargs):
@@ -53,11 +82,14 @@ def main() -> int:
         post("/provider-credentials", json={"provider": "ollama", "api_key": "", "label": "Local Ollama", "make_default": True})
         print("stored ollama credential")
 
-    # 3. A second team member who will act as the live agent.
+    # 3. Team members: the agent for the handoff demo, the viewer for the read-only UI.
     members = client.get("/workspace/members", headers=headers).json()["data"]
     if not any(m["email"] == AGENT_EMAIL for m in members):
         post("/workspace/members", json={"email": AGENT_EMAIL, "full_name": "Agent Ana", "password": AGENT_PASSWORD, "role": "member"})
         print("added agent", AGENT_EMAIL)
+    if not any(m["email"] == VIEWER_EMAIL for m in members):
+        post("/workspace/members", json={"email": VIEWER_EMAIL, "full_name": "Viewer Vik", "password": VIEWER_PASSWORD, "role": "viewer"})
+        print("added viewer", VIEWER_EMAIL)
 
     # 4. Knowledge base + FAQ document (ingested by the worker).
     bases = client.get("/knowledge-bases", headers=headers).json()["data"]
@@ -109,12 +141,25 @@ def main() -> int:
     visitor(support_id, "Billing")  # lands in handoff → waiting in the Inbox
     print("seeded 4 conversations")
 
+    # 7. A second workspace, so the organisation owner has somewhere to switch to.
+    organization = client.get("/organization", headers=headers).json()["data"]
+    if not any(w["name"] == "Sales" for w in organization["workspaces"]):
+        post("/organization/workspaces", json={"name": "Sales"})
+        print("created workspace Sales")
+
+    # 8. A second tenant, so the superadmin console lists more than one organisation.
+    session_for(NORTHWIND_EMAIL, NORTHWIND_PASSWORD, "Demo Owner", "Northwind Outdoor")
+
     root = api.replace("/api/v1", "")
     print("\nDemo ready.")
-    print(f"  Dashboard login : {EMAIL} / {PASSWORD}   (agent: {AGENT_EMAIL} / {AGENT_PASSWORD})")
-    print(f"  Customer page   : {root}/demo?chatbot_id={support_id}")
-    print(f"  FAQ bot page    : {root}/demo?chatbot_id={faq_id}")
-    print(f"  Lead bot page   : {root}/demo?chatbot_id={lead_id}")
+    print(f"  Superadmin          : {SUPERADMIN_EMAIL} / {SUPERADMIN_PASSWORD}")
+    print(f"  Organisation owner  : {OWNER_EMAIL} / {owner_password}  (org Rogith, workspaces Default + Sales)")
+    print(f"  Agent (member)      : {AGENT_EMAIL} / {AGENT_PASSWORD}  (Rogith / Default)")
+    print(f"  Viewer              : {VIEWER_EMAIL} / {VIEWER_PASSWORD}  (Rogith / Default)")
+    print(f"  Second tenant owner : {NORTHWIND_EMAIL} / {NORTHWIND_PASSWORD}  (org Northwind Outdoor)")
+    print(f"  Customer page       : {root}/demo?chatbot_id={support_id}")
+    print(f"  FAQ bot page        : {root}/demo?chatbot_id={faq_id}")
+    print(f"  Lead bot page       : {root}/demo?chatbot_id={lead_id}")
     return 0
 
 

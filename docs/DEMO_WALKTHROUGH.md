@@ -8,6 +8,11 @@ Before the session: run `scripts\start-demo.ps1`, wait for all three windows, ru
 ## 2. Multi-tenancy and roles (1 min) — Settings → Team
 Show the workspace name, the owner, and the agent member. Point out roles. Open Settings → Activity: every action so far is already recorded with actor and target. "Every table has a workspace id, every query requires it, and Postgres row-level security enforces it a second time."
 
+## 2a. Three levels of administration (1 min)
+- Log in as **admin@admin.com** (superadmin): Admin → Overview shows every organisation, workspace, user, bot and conversation on the platform; Organisations tab changes Rogith's plan to "pro"; Users tab can deactivate an account. Point out: the superadmin sees *metadata*, never a tenant's conversations.
+- Log in as **rohithnewman@gmail.com** (organisation owner): Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
+- Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
+
 ## 3. Bring your own AI key (30 s) — Settings → AI Providers
 Show the stored Ollama credential ("ends with none" because Ollama is keyless). "Keys are encrypted before they reach the database and the API never returns them."
 
@@ -21,7 +26,7 @@ Click "Visual" view. Walk the nodes: message → question → knowledge search �
 Change the theme colour and title, save. Switch to the customer page, reload: the bubble and header take the new colour. "The widget is a dependency-free script; it fetches the published design and talks only to a public, token-scoped API."
 
 ## 7. Talk to it as a visitor, then hand off (2 min) — customer page
-Use the FAQ bot page: ask "How long do refunds take?" → answer quotes the document. Switch to the Support bot page: choose "Billing" → the bot says it is connecting to an agent. Left window: Inbox shows the conversation as `handoff`. Reply as the agent. Right window: the reply appears within two seconds. Close the conversation from the inbox; the widget input disables.
+Use the FAQ bot page: ask "How long do refunds take?" → answer quotes the document. Switch to the Support bot page: choose "Billing" → the bot says it is connecting to an agent. Left window: Inbox shows the conversation as `handoff`. Reply as the agent. Right window: the reply appears within two seconds. Close the conversation from the inbox; the widget input disables. Choose an option by clicking a button instead of typing; the email step switches the keyboard to an email field; the image step renders inline.
 
 ## 8. Analytics and the audit trail (1 min) — Analytics, then Settings → Activity
 Conversation tiles, the per-day bar, per-bot table. Then Activity: the agent reply and the close are the two newest rows.
