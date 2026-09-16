@@ -33,10 +33,10 @@ export const LOOP_DURATION = 13.5;
 
 /* ── Stage anchors ───────────────────────────────────────────────────────── */
 
-export const BOT_ANCHOR = { x: 30, y: 38 } as const;
+export const BOT_ANCHOR = { x: 30, y: 34.5 } as const;
 /** The Inbox window — where a resolved conversation lands. */
 export const CRM_ANCHOR = { x: 73, y: 50 } as const;
-export const DESK_ANCHOR = { x: 16, y: 82 } as const;
+export const DESK_ANCHOR = { x: 30, y: 84 } as const;
 
 /* ── Channels ────────────────────────────────────────────────────────────── */
 
@@ -94,7 +94,7 @@ export const CONVERSATIONS: readonly ConversationDef[] = [
     badge: 2,
     from: { x: -30, y: 6 },
     via: { x: -6, y: 1 },
-    settle: { x: 13, y: 10 },
+    settle: { x: 13, y: 8.5 },
     handoffVia: { x: 15, y: 26 },
     enterAt: 2,
     travelAt: 6.2,
@@ -110,7 +110,7 @@ export const CONVERSATIONS: readonly ConversationDef[] = [
     badge: 1,
     from: { x: 44, y: -34 },
     via: { x: 58, y: -10 },
-    settle: { x: 34, y: 10 },
+    settle: { x: 34, y: 8.5 },
     handoffVia: { x: 38, y: 26 },
     enterAt: 3.9,
     travelAt: 6.95,
@@ -126,7 +126,7 @@ export const CONVERSATIONS: readonly ConversationDef[] = [
     badge: 3,
     from: { x: -32, y: 62 },
     via: { x: -12, y: 42 },
-    settle: { x: 13, y: 26 },
+    settle: { x: 13, y: 22.5 },
     handoffVia: { x: 17, y: 34 },
     enterAt: 4.65,
     travelAt: 7.7,
@@ -142,7 +142,7 @@ export const CONVERSATIONS: readonly ConversationDef[] = [
     badge: 1,
     from: { x: 30, y: 124 },
     via: { x: 42, y: 72 },
-    settle: { x: 34, y: 26 },
+    settle: { x: 34, y: 22.5 },
     handoffVia: { x: 37, y: 34 },
     enterAt: 5.45,
     travelAt: 8.45,

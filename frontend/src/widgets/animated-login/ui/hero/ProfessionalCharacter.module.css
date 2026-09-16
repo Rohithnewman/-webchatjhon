@@ -1,43 +1,72 @@
 /**
- * The character's own palette. Kept local because these are illustration
- * values (skin, hair, upholstery) rather than product tokens — nothing outside
- * this rig should ever reference them.
+ * The professional: a 2.5D cut-out of the reference illustration. The base
+ * plate is the drawing; the patches are the same pixels with feathered
+ * masks, positioned by `character-layers.ts` and moved by the story clock.
  */
 
 .root {
-  --skin: #eab992;
-  --skin-shade: #d9a37a;
-  --hair: #26332d;
-  --ink: #17231f;
-  --shirt: #2f4a40;
-  --shirt-dark: #263c34;
-  --shirt-light: #f2f7f4;
-  --chair: #cddbd4;
-  --desk-edge: #cfded7;
-  --laptop-deck: #dfeae5;
-  --laptop-line: #a9beb5;
-  --laptop-lid: #3a4c45;
-
   position: absolute;
-  left: -2%;
-  bottom: -2%;
-  width: 46%;
+  left: -1.5%;
+  bottom: -2.5%;
+  width: 42%;
   max-width: 440px;
+  /* The plate's own proportions, so the slot has its height before the
+     image arrives and nothing on the stage shifts. */
+  aspect-ratio: 803 / 662;
   pointer-events: none;
 }
 
-.rig {
+.figure {
+  position: absolute;
+  inset: 0;
+}
+
+.base,
+.patch {
+  position: absolute;
   display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.base {
+  inset: 0;
   width: 100%;
-  height: auto;
-  overflow: visible;
-  /* One promoted layer for the whole rig: the joints animate inside it, so the
-     compositor never has to re-promote per limb. */
+  height: 100%;
+  /* Soft contact shadow under the chair and table legs. */
+  filter: drop-shadow(0 10px 14px rgba(23, 35, 31, 0.1));
+}
+
+.patch {
+  /* Each patch is its own compositor layer: the transforms only ever touch
+     these, so the plate is painted once. */
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 /**
- * Slot for a supplied frame sequence. Sized to the same box as the vector rig
+ * Light off the laptop screen, spilling onto the character. The clock writes
+ * its opacity from WebChatBot's energy; the shape never changes.
+ */
+.screenLight {
+  position: absolute;
+  width: 34%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(29, 255, 178, 0.32) 0%,
+    rgba(22, 199, 132, 0.12) 42%,
+    rgba(22, 199, 132, 0) 70%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/**
+ * Slot for a supplied frame sequence. Sized to the same box as the cut-out
  * so swapping renderers does not move the character.
  */
 .sprite {
@@ -47,13 +76,13 @@
   pointer-events: none;
 }
 
-.sprite ~ .rig {
-  /* A supplied sheet replaces the rig rather than drawing over it. */
+.sprite ~ .figure {
+  /* A supplied sheet replaces the cut-out rather than drawing over it. */
   display: none;
 }
 
 @media (max-width: 900px) {
   .root {
-    width: 58%;
+    width: 54%;
   }
 }

@@ -7,7 +7,7 @@
  * hands move continuously instead of stepping between drawings.
  *
  * Two renderers consume the same frame index:
- *   - the vector rig in `ProfessionalCharacter` (used today), and
+ *   - the 2.5D cut-out in `ProfessionalCharacter` (used today), and
  *   - `createCssSpriteRenderer` against `CHARACTER_SPRITE_SHEET` (used the
  *     moment a drawn/rendered frame sequence is dropped in — see below).
  *
