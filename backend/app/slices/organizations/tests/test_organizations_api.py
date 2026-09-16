@@ -38,6 +38,13 @@ async def test_rename_organization_requires_manage_permission(client):
     assert denied.status_code == 403
 
 
+async def test_rename_organization_rejects_blank_name(client):
+    owner = await _register(client, "blank@acme.test", "Acme")
+    response = await client.patch("/api/v1/organization", json={"name": "   "}, headers=_headers(owner))
+    assert response.status_code == 400
+    assert response.json()["error"] == "VALIDATION_ERROR"
+
+
 async def test_create_workspace_makes_caller_owner_and_is_switchable(client):
     owner = await _register(client, "multi@acme.test", "Acme")
     created = await client.post("/api/v1/organization/workspaces", json={"name": "Sales"}, headers=_headers(owner))
