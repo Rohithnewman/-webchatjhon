@@ -26,13 +26,13 @@ Click "Visual" view. Walk the nodes: message → question → knowledge search �
 Change the theme colour and title, save. Switch to the customer page, reload: the bubble and header take the new colour. "The widget is a dependency-free script; it fetches the published design and talks only to a public, token-scoped API."
 
 ## 7. Talk to it as a visitor, then hand off (2 min) — customer page
-Use the FAQ bot page: ask "How long do refunds take?" → answer quotes the document. Switch to the Support bot page: choose "Billing" → the bot says it is connecting to an agent. Left window: Inbox shows the conversation as `handoff`. Reply as the agent. Right window: the reply appears within two seconds. Close the conversation from the inbox; the widget input disables. Choose an option by clicking a button instead of typing; the email step switches the keyboard to an email field; the image step renders inline.
+Use the FAQ bot page: ask "How long do refunds take?" → answer quotes the document. Switch to the Support bot page: choose "Billing" → the bot says it is connecting to an agent. Left window: Inbox shows the conversation as `handoff`. Reply as the agent. Right window: the reply appears within two seconds. Close the conversation from the inbox; the widget input disables. Open the Lead Capture bot page (third URL the seed prints): choose an option by clicking a button instead of typing, and notice the email step switches the input to an email field.
 
 ## 8. Analytics and the audit trail (1 min) — Analytics, then Settings → Activity
 Conversation tiles, the per-day bar, per-bot table. Then Activity: the agent reply and the close are the two newest rows.
 
 ## 9. Engineering (1 min) — show the terminal
-Run `pytest` (≈170 tests against a throwaway Postgres database) and `lint-imports` (slice boundaries). Mention: vertical-slice backend, feature-sliced frontend, JWT with server-side role resolution, RLS, Postgres job queue with SKIP LOCKED, polling instead of WebSockets as a documented v1 trade-off.
+Run `pytest` (≈190 tests against a throwaway Postgres database) and `lint-imports` (slice boundaries). Mention: vertical-slice backend, feature-sliced frontend, JWT with server-side role resolution, RLS, Postgres job queue with SKIP LOCKED, polling instead of WebSockets as a documented v1 trade-off.
 
 ## Likely questions
 - **Why not WebSockets?** One auth model and simpler testing; the message API is turn-scoped so streaming is additive. Documented in the Phase 4 spec.

@@ -68,6 +68,8 @@ cd backend; .venv\Scripts\python.exe -m scripts.seed_demo
 
 This creates the accounts below, a knowledge base with an FAQ document, three published bots, and a few conversations. It prints the URL of a fake customer website (`/demo?chatbot_id=…`) with the widget installed. See `docs/DEMO_WALKTHROUGH.md` for a scripted 10-minute demonstration.
 
+The seed script, `set_password.py` and the demo passwords are for local demonstrations only and must never reach a deployed environment.
+
 | Account | Password | What it is |
 |---|---|---|
 | `admin@admin.com` | `AdminPassword123!` | platform **superadmin** (also owner of a private "Platform / Admin" workspace so login works) |
@@ -102,12 +104,13 @@ backend/
   app/core/        settings, database, security primitives, error envelope, rate limiter
   app/shared/      ORM mixins, request context, permission constants
   app/slices/      one directory per feature: identity, authz, tenancy, members, audit,
-                   chatbots, providers, knowledge, jobs, conversations, analytics, health
+                   chatbots, providers, knowledge, jobs, conversations, analytics, health,
+                   admin, organizations
                    (each: models, schemas, repository, router, api.py = public interface, tests)
   app/static/      widget.js, demo.html
   app/worker.py    job poller (Postgres job table, FOR UPDATE SKIP LOCKED)
-  alembic/         migrations 0001–0008
-  scripts/         seed_demo.py
+  alembic/         migrations 0001–0010
+  scripts/         seed_demo.py, demo_flows.py, create_superadmin.py, set_password.py
 frontend/src/
   app/             router + providers
   pages/           one per screen

@@ -141,11 +141,15 @@ def main() -> int:
         for text in turns:
             client.post(f"/widget/conversations/{data['conversation']['id']}/messages", headers=widget_headers, json={"content": text})
 
-    visitor(lead_id, "Priya", "priya@example.com", "A demo")
-    visitor(lead_id, "Sam", "sam@example.com", "Pricing")
-    visitor(faq_id, "How long do refunds take?")
-    visitor(support_id, "Billing")  # lands in handoff → waiting in the Inbox
-    print("seeded 4 conversations")
+    existing_conversations = client.get("/conversations", headers=headers).json()["data"]
+    if existing_conversations:
+        print("conversations already present, skipping")
+    else:
+        visitor(lead_id, "Priya", "priya@example.com", "A demo")
+        visitor(lead_id, "Sam", "sam@example.com", "Pricing")
+        visitor(faq_id, "How long do refunds take?")
+        visitor(support_id, "Billing")  # lands in handoff → waiting in the Inbox
+        print("seeded 4 conversations")
 
     # 7. A second workspace, so the organisation owner has somewhere to switch to.
     organization = client.get("/organization", headers=headers).json()["data"]
