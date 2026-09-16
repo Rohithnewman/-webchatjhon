@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   PLANS,
@@ -66,7 +66,7 @@ function Overview() {
 const EFFECTIVE_TONE: Record<EffectiveStatus, BadgeTone> = { active: "brand", suspended: "warning", expired: "danger" };
 
 function formatLimit(used: number, limit: number | null) {
-  return `${used}/${limit ?? "∞"}`;
+  return `${used} / ${limit ?? "∞"}`;
 }
 
 function Organizations() {
@@ -91,7 +91,8 @@ function Organizations() {
               <th>Status</th>
               <th>Period</th>
               <th>Effective</th>
-              <th>Usage</th>
+              <th>Limits</th>
+              <th>Usage this month</th>
               <th>Workspaces</th>
               <th>Created</th>
             </tr>
@@ -157,10 +158,95 @@ function OrganizationRow({
         </div>
       </td>
       <td><Badge tone={EFFECTIVE_TONE[sub.effective_status]}>{sub.effective_status}</Badge></td>
-      <td>{formatLimit(sub.seats_used, sub.seat_limit)} seats · {formatLimit(sub.chatbots_used, sub.chatbot_limit)} bots</td>
+      <td>
+        <div className="limit-input-row">
+          <LimitInput
+            label={`User limit for ${org.name}`}
+            value={sub.seat_limit}
+            overridden={sub.limits_overridden.seats}
+            pending={pending}
+            onCommit={(v) => onPatch({ seat_limit: v })}
+          />
+          <LimitInput
+            label={`Bot limit for ${org.name}`}
+            value={sub.chatbot_limit}
+            overridden={sub.limits_overridden.chatbots}
+            pending={pending}
+            onCommit={(v) => onPatch({ chatbot_limit: v })}
+          />
+          <LimitInput
+            label={`Conversation limit for ${org.name}`}
+            value={sub.conversation_limit}
+            overridden={sub.limits_overridden.conversations}
+            pending={pending}
+            onCommit={(v) => onPatch({ conversation_limit: v })}
+          />
+        </div>
+      </td>
+      <td>
+        users {formatLimit(sub.seats_used, sub.seat_limit)} · bots {formatLimit(sub.chatbots_used, sub.chatbot_limit)} · chats {formatLimit(sub.conversations_used, sub.conversation_limit)} (this month)
+      </td>
       <td>{org.workspace_count}</td>
       <td>{new Date(org.created_at).toLocaleDateString()}</td>
     </tr>
+  );
+}
+
+/** A single override control: blank input showing the plan default as a placeholder, or the
+ *  override value when one is set, plus a "default" button to clear it. Commits on blur/Enter
+ *  only — the shared mutation disables every input in the row while a commit is in flight. */
+function LimitInput({
+  label,
+  value,
+  overridden,
+  pending,
+  onCommit,
+}: {
+  label: string;
+  /** Effective limit: the override when `overridden`, otherwise the plan default. */
+  value: number | null;
+  overridden: boolean;
+  pending: boolean;
+  onCommit: (value: number | null) => void;
+}) {
+  const initial = overridden && value !== null ? String(value) : "";
+  const [draft, setDraft] = useState(initial);
+
+  useEffect(() => setDraft(initial), [initial]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed === "") {
+      if (overridden) onCommit(null);
+      else setDraft("");
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n < 0) { setDraft(initial); return; }
+    if (overridden && n === value) return;
+    onCommit(n);
+  };
+
+  return (
+    <span className="limit-input-group">
+      <input
+        type="number"
+        min={0}
+        className="limit-input"
+        value={draft}
+        placeholder={value === null ? "∞" : String(value)}
+        disabled={pending}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        aria-label={label}
+      />
+      {overridden && (
+        <Button size="sm" variant="ghost" className="limit-default-btn" disabled={pending} onClick={() => onCommit(null)}>
+          default
+        </Button>
+      )}
+    </span>
   );
 }
 

@@ -87,6 +87,7 @@ export function OrganizationPanel() {
             <div><dt>Period</dt><dd>{sub.ends_at ? `${sub.starts_at} → ${sub.ends_at}` : `${sub.starts_at} → no expiry`}</dd></div>
             <div><dt>Seats</dt><dd>{formatLimit(sub.seats_used, sub.seat_limit)}</dd></div>
             <div><dt>Chatbots</dt><dd>{formatLimit(sub.chatbots_used, sub.chatbot_limit)}</dd></div>
+            <div><dt>Conversations this month</dt><dd>{formatLimit(sub.conversations_used, sub.conversation_limit)}</dd></div>
           </dl>
           <p className="form-hint">Plan, status and period are set by the platform administrator.</p>
         </Panel.Body>

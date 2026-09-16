@@ -80,7 +80,7 @@ The seed script, `set_password.py` and the demo passwords are for local demonstr
 
 Rogith is on the pro plan; Northwind on free.
 
-Superadmin console: log in as admin@admin.com → the shield icon in the left rail. Organisations tab: change plan, suspend/reactivate, set the subscription period; a suspended or expired organisation is locked out and its widgets stop answering.
+Superadmin console: log in as admin@admin.com → the shield icon in the left rail. Organisations tab: change plan, suspend/reactivate, set the subscription period; a suspended or expired organisation is locked out and its widgets stop answering. Superadmins can override each organisation's limits (users, bots, conversations per month); plan defaults are free 5/3/200, pro 25/25/5 000, enterprise unlimited.
 
 Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
 
