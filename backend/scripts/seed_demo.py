@@ -132,6 +132,18 @@ def main() -> int:
     faq_id = ensure_bot("FAQ Bot", "Answers from the Northwind FAQ knowledge base", faq_knowledge(base["id"]))
     support_id = ensure_bot("Support Bot", "Triage then hand off to a human", support_handoff())
 
+    # 5a. Rogith moves to the pro plan; Northwind stays on free/active.
+    admin_login = client.post("/auth/login", json={"email": SUPERADMIN_EMAIL, "password": SUPERADMIN_PASSWORD})
+    admin_login.raise_for_status()
+    admin_headers = {"Authorization": f"Bearer {admin_login.json()['data']['access_token']}"}
+    admin_orgs = client.get("/admin/organizations", headers=admin_headers).json()["data"]
+    rogith_org = next((o for o in admin_orgs if o["name"] == OWNER_ORG), None)
+    if rogith_org is not None and rogith_org["plan"] != "pro":
+        client.patch(
+            f"/admin/organizations/{rogith_org['id']}", json={"plan": "pro"}, headers=admin_headers
+        ).raise_for_status()
+        print("Rogith set to pro")
+
     # 6. A few conversations so the inbox and analytics are not empty.
     def visitor(chatbot_id, *turns):
         started = client.post("/widget/conversations", json={"chatbot_id": chatbot_id})

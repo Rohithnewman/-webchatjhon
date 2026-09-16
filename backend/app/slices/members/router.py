@@ -110,6 +110,17 @@ async def add_member(
         raise AppError(
             code="ALREADY_MEMBER", message="That person is already in this workspace", status_code=400
         )
+    organization = await tenancy_api.get_organization_of_workspace(session, workspace_id=ctx.workspace_id)
+    if organization is not None:
+        sub = await tenancy_api.get_subscription(session, organization_id=organization.id)
+        if sub is not None and sub.seat_limit is not None:
+            seats_used = await tenancy_api.count_org_seats(session, organization_id=organization.id)
+            if seats_used >= sub.seat_limit:
+                raise AppError(
+                    code="PLAN_LIMIT",
+                    message=f"The {sub.plan} plan allows {sub.seat_limit} members. Upgrade the plan to add more.",
+                    status_code=403,
+                )
     role_id = await _role_id(session, body.role)
     await tenancy_api.create_membership(
         session, user_id=user.id, workspace_id=ctx.workspace_id, role_id=role_id

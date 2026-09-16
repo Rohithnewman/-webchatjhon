@@ -13,6 +13,7 @@ from app.slices.authz import api as authz_api
 from app.slices.chatbots import repository, service
 from app.slices.chatbots.models import Chatbot, Flow
 from app.slices.chatbots.schemas import ChatbotCreate, ChatbotUpdate, FlowDocument
+from app.slices.tenancy import api as tenancy_api
 
 router = APIRouter(prefix="/api/v1/chatbots", tags=["chatbots"])
 
@@ -72,6 +73,18 @@ async def create_chatbot(
     ctx: WorkspaceContext = Depends(write_context),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
+    organization = await tenancy_api.get_organization_of_workspace(session, workspace_id=ctx.workspace_id)
+    if organization is not None:
+        sub = await tenancy_api.get_subscription(session, organization_id=organization.id)
+        if sub is not None and sub.chatbot_limit is not None:
+            workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=organization.id)
+            chatbots_used = await repository.count_for_workspaces(session, workspace_ids=workspace_ids)
+            if chatbots_used >= sub.chatbot_limit:
+                raise AppError(
+                    code="PLAN_LIMIT",
+                    message=f"The {sub.plan} plan allows {sub.chatbot_limit} chatbots. Upgrade the plan to add more.",
+                    status_code=403,
+                )
     chatbot, flow = await service.create_chatbot(
         session,
         workspace_id=ctx.workspace_id,

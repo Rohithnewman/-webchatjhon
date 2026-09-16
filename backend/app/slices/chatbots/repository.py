@@ -28,6 +28,17 @@ async def list_chatbots(
     return [(row[0], row[1]) for row in (await session.execute(statement)).all()]
 
 
+async def count_for_workspaces(session: AsyncSession, *, workspace_ids: list[uuid.UUID]) -> int:
+    if not workspace_ids:
+        return 0
+    statement = (
+        select(func.count())
+        .select_from(Chatbot)
+        .where(Chatbot.workspace_id.in_(workspace_ids), Chatbot.deleted_at.is_(None))
+    )
+    return int((await session.execute(statement)).scalar_one())
+
+
 async def select_chatbot(
     session: AsyncSession,
     *,

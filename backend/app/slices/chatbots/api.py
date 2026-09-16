@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.slices.chatbots.models import Chatbot
+from app.slices.chatbots.repository import count_for_workspaces as _count_for_workspaces
 from app.slices.chatbots.repository import select_current_flow
 from app.slices.chatbots.schemas import FlowDocument, NodeType
 
@@ -72,6 +73,15 @@ async def list_names(
     return {chatbot_id: name for chatbot_id, name in rows}
 
 
+async def count_for_workspaces(session: AsyncSession, *, workspace_ids: list[uuid.UUID]) -> int:
+    """Live chatbots (not deleted) whose workspace_id is in the given list.
+
+    Used to enforce the organisation's chatbot plan limit, and to report
+    usage in the admin/owner subscription views.
+    """
+    return await _count_for_workspaces(session, workspace_ids=workspace_ids)
+
+
 async def platform_count(session: AsyncSession) -> int:
     """Superadmin only: live chatbots across every workspace."""
     from sqlalchemy import func
@@ -90,6 +100,7 @@ __all__ = [
     "FlowDocument",
     "NodeType",
     "PublishedChatbot",
+    "count_for_workspaces",
     "get_current_flow",
     "get_published_chatbot",
     "list_names",

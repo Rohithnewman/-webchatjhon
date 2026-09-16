@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -162,6 +162,141 @@ async def remove_membership(
 
 PLANS = ("free", "pro", "enterprise")
 
+SUBSCRIPTION_STATUSES = ("active", "suspended")
+
+PLAN_LIMITS: dict[str, dict[str, int | None]] = {
+    "free": {"seats": 5, "chatbots": 3},
+    "pro": {"seats": 25, "chatbots": 25},
+    "enterprise": {"seats": None, "chatbots": None},  # None = unlimited
+}
+
+
+@dataclass(frozen=True)
+class SubscriptionView:
+    plan: str
+    status: str  # stored: active | suspended
+    effective_status: str  # active | suspended | expired
+    starts_at: date
+    ends_at: date | None
+    seat_limit: int | None
+    chatbot_limit: int | None
+    seats_used: int  # distinct active members across the org's live workspaces
+    chatbots_used: int = 0  # live chatbots across the org's workspaces; filled in by the caller
+
+
+def effective_status(status: str, ends_at: date | None, today: date | None = None) -> str:
+    """"expired" if `ends_at` has passed, else the stored status."""
+    if ends_at is not None and ends_at < (today or date.today()):
+        return "expired"
+    return status
+
+
+def _subscription_view(organization, seats_used: int) -> SubscriptionView:
+    limits = PLAN_LIMITS.get(organization.plan, PLAN_LIMITS["free"])
+    return SubscriptionView(
+        plan=organization.plan,
+        status=organization.subscription_status,
+        effective_status=effective_status(
+            organization.subscription_status, organization.subscription_ends_at
+        ),
+        starts_at=organization.subscription_starts_at,
+        ends_at=organization.subscription_ends_at,
+        seat_limit=limits["seats"],
+        chatbot_limit=limits["chatbots"],
+        seats_used=seats_used,
+    )
+
+
+def subscription_dict(sub: SubscriptionView, *, chatbots_used: int | None = None) -> dict:
+    return {
+        "plan": sub.plan,
+        "status": sub.status,
+        "effective_status": sub.effective_status,
+        "starts_at": sub.starts_at.isoformat(),
+        "ends_at": sub.ends_at.isoformat() if sub.ends_at is not None else None,
+        "seat_limit": sub.seat_limit,
+        "chatbot_limit": sub.chatbot_limit,
+        "seats_used": sub.seats_used,
+        "chatbots_used": sub.chatbots_used if chatbots_used is None else chatbots_used,
+    }
+
+
+async def get_subscription(
+    session: AsyncSession, *, organization_id: uuid.UUID
+) -> SubscriptionView | None:
+    organization = await repository.select_organization(session, organization_id=organization_id)
+    if organization is None:
+        return None
+    seats_used = await repository.count_org_seats(session, organization_id=organization_id)
+    return _subscription_view(organization, seats_used)
+
+
+async def get_subscription_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> SubscriptionView | None:
+    found = await repository.select_workspace_with_organization(session, workspace_id=workspace_id)
+    if found is None:
+        return None
+    _, organization = found
+    seats_used = await repository.count_org_seats(session, organization_id=organization.id)
+    return _subscription_view(organization, seats_used)
+
+
+_UNSET = object()
+
+
+async def set_subscription(
+    session: AsyncSession,
+    *,
+    organization_id: uuid.UUID,
+    plan: str | None = None,
+    status: str | None = None,
+    starts_at: date | None = None,
+    ends_at: date | None = _UNSET,  # type: ignore[assignment]
+) -> SubscriptionView | None:
+    """`ends_at` defaults to a private sentinel (not exposed to callers) so
+    "leave the expiry unchanged" and "clear it" (pass `ends_at=None`) are
+    distinguishable — the router only passes `ends_at` at all when the
+    caller's request body explicitly set that key."""
+    organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
+    if organization is None:
+        return None
+    if plan is not None and plan not in PLANS:
+        raise AppError(
+            code="INVALID_SUBSCRIPTION", message=f"plan must be one of {', '.join(PLANS)}", status_code=400
+        )
+    if status is not None and status not in SUBSCRIPTION_STATUSES:
+        raise AppError(
+            code="INVALID_SUBSCRIPTION",
+            message=f"status must be one of {', '.join(SUBSCRIPTION_STATUSES)}",
+            status_code=400,
+        )
+    new_starts_at = starts_at if starts_at is not None else organization.subscription_starts_at
+    new_ends_at = organization.subscription_ends_at if ends_at is _UNSET else ends_at
+    if new_ends_at is not None and new_ends_at < new_starts_at:
+        raise AppError(
+            code="INVALID_SUBSCRIPTION", message="ends_at must not be before starts_at", status_code=400
+        )
+    if plan is not None:
+        organization.plan = plan
+    if status is not None:
+        organization.subscription_status = status
+    if starts_at is not None:
+        organization.subscription_starts_at = starts_at
+    if ends_at is not _UNSET:
+        organization.subscription_ends_at = ends_at
+    await session.flush()
+    seats_used = await repository.count_org_seats(session, organization_id=organization_id)
+    return _subscription_view(organization, seats_used)
+
+
+async def count_org_seats(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
+    return await repository.count_org_seats(session, organization_id=organization_id)
+
+
+async def list_org_workspace_ids(session: AsyncSession, *, organization_id: uuid.UUID) -> list[uuid.UUID]:
+    return await repository.list_org_workspace_ids(session, organization_id=organization_id)
+
 
 @dataclass(frozen=True)
 class OrganizationSummary:
@@ -171,6 +306,7 @@ class OrganizationSummary:
     created_at: datetime
     workspace_count: int
     member_count: int
+    subscription: SubscriptionView
 
 
 def _organization_summary(organization, workspace_count: int, member_count: int) -> OrganizationSummary:
@@ -181,6 +317,10 @@ def _organization_summary(organization, workspace_count: int, member_count: int)
         created_at=organization.created_at,
         workspace_count=workspace_count,
         member_count=member_count,
+        # `member_count` is already "distinct users across the org's live
+        # workspaces" (see list_organizations_with_counts), i.e. exactly the
+        # seat count — reuse it instead of a second query.
+        subscription=_subscription_view(organization, member_count),
     )
 
 
@@ -192,22 +332,34 @@ async def platform_list_organizations(session: AsyncSession) -> list[Organizatio
     ]
 
 
+async def get_organization_summary(
+    session: AsyncSession, *, organization_id: uuid.UUID
+) -> OrganizationSummary | None:
+    rows = await repository.list_organizations_with_counts(session)
+    return next(
+        (
+            _organization_summary(org, workspaces, members)
+            for org, workspaces, members in rows
+            if org.id == organization_id
+        ),
+        None,
+    )
+
+
+async def count_locked_organizations(session: AsyncSession) -> int:
+    """Superadmin only: organisations whose effective subscription status is
+    not "active" (suspended or expired)."""
+    summaries = await platform_list_organizations(session)
+    return sum(1 for summary in summaries if summary.subscription.effective_status != "active")
+
+
 async def set_organization_plan(
     session: AsyncSession, *, organization_id: uuid.UUID, plan: str
 ) -> OrganizationSummary | None:
-    if plan not in PLANS:
-        raise AppError(code="INVALID_PLAN", message=f"plan must be one of {', '.join(PLANS)}", status_code=400)
-    organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
-    if organization is None:
+    sub = await set_subscription(session, organization_id=organization_id, plan=plan)
+    if sub is None:
         return None
-    organization.plan = plan
-    await session.flush()
-    rows = await repository.list_organizations_with_counts(session)
-    return next(
-        _organization_summary(org, workspaces, members)
-        for org, workspaces, members in rows
-        if org.id == organization_id
-    )
+    return await get_organization_summary(session, organization_id=organization_id)
 
 
 async def platform_counts(session: AsyncSession) -> dict[str, int]:

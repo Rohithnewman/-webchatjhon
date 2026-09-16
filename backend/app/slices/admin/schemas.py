@@ -1,10 +1,20 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
 
-class PlanUpdate(BaseModel):
-    plan: Literal["free", "pro", "enterprise"]
+class SubscriptionUpdate(BaseModel):
+    plan: Literal["free", "pro", "enterprise"] | None = None
+    status: Literal["active", "suspended"] | None = None
+    starts_at: date | None = None
+    ends_at: date | None = None  # explicit null clears the expiry, but only when the key is present
+
+    @model_validator(mode="after")
+    def require_change(self) -> "SubscriptionUpdate":
+        if not self.model_fields_set:
+            raise ValueError("supply at least one of plan, status, starts_at, ends_at")
+        return self
 
 
 class UserFlagsUpdate(BaseModel):

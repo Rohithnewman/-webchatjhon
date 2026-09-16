@@ -2,6 +2,7 @@
 metadata — never tenant content — through the published `platform_*` APIs."""
 
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,7 @@ from app.core.database import get_session
 from app.core.envelope import success
 from app.core.errors import AppError
 from app.shared.context import Principal
-from app.slices.admin.schemas import PlanUpdate, UserFlagsUpdate
+from app.slices.admin.schemas import SubscriptionUpdate, UserFlagsUpdate
 from app.slices.audit import api as audit_api
 from app.slices.chatbots import api as chatbots_api
 from app.slices.conversations import api as conversations_api
@@ -32,7 +33,7 @@ async def require_superadmin(
     return user
 
 
-def _organization(summary: tenancy_api.OrganizationSummary) -> dict:
+def _organization(summary: tenancy_api.OrganizationSummary, chatbots_used: int) -> dict:
     return {
         "id": str(summary.id),
         "name": summary.name,
@@ -40,7 +41,13 @@ def _organization(summary: tenancy_api.OrganizationSummary) -> dict:
         "created_at": summary.created_at.isoformat(),
         "workspace_count": summary.workspace_count,
         "member_count": summary.member_count,
+        "subscription": tenancy_api.subscription_dict(summary.subscription, chatbots_used=chatbots_used),
     }
+
+
+async def _chatbots_used(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
+    workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=organization_id)
+    return await chatbots_api.count_for_workspaces(session, workspace_ids=workspace_ids)
 
 
 def _user(summary: identity_api.UserSummary, organizations: list[str]) -> dict:
@@ -67,6 +74,7 @@ async def stats(
             "users": len(await identity_api.platform_list_users(session)),
             "chatbots": await chatbots_api.platform_count(session),
             "conversations": await conversations_api.platform_count(session),
+            "locked_organizations": await tenancy_api.count_locked_organizations(session),
         }
     )
 
@@ -76,29 +84,48 @@ async def list_organizations(
     _: identity_api.UserSummary = Depends(require_superadmin),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    return success([_organization(o) for o in await tenancy_api.platform_list_organizations(session)])
+    summaries = await tenancy_api.platform_list_organizations(session)
+    return success(
+        [_organization(o, await _chatbots_used(session, organization_id=o.id)) for o in summaries]
+    )
 
 
 @router.patch("/organizations/{organization_id}")
-async def change_plan(
+async def update_subscription(
     organization_id: uuid.UUID,
-    body: PlanUpdate,
+    body: SubscriptionUpdate,
     admin: identity_api.UserSummary = Depends(require_superadmin),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    updated = await tenancy_api.set_organization_plan(session, organization_id=organization_id, plan=body.plan)
-    if updated is None:
+    fields_set = body.model_fields_set
+    ends_at_kwargs = {"ends_at": body.ends_at} if "ends_at" in fields_set else {}
+    sub = await tenancy_api.set_subscription(
+        session,
+        organization_id=organization_id,
+        plan=body.plan,
+        status=body.status,
+        starts_at=body.starts_at,
+        **ends_at_kwargs,
+    )
+    if sub is None:
         raise AppError(code="NOT_FOUND", message="Organization not found", status_code=404)
+    summary = await tenancy_api.get_organization_summary(session, organization_id=organization_id)
+    assert summary is not None
+    chatbots_used = await _chatbots_used(session, organization_id=organization_id)
+
+    def _jsonable(value: object) -> object:
+        return value.isoformat() if isinstance(value, date) else value
+
     await audit_api.record(
         session,
-        action=audit_api.actions.ADMIN_ORGANIZATION_PLAN_CHANGED,
+        action=audit_api.actions.ADMIN_ORGANIZATION_SUBSCRIPTION_CHANGED,
         actor_id=admin.id,
         target_type="organization",
         target_id=str(organization_id),
-        metadata={"plan": body.plan},
+        metadata={field: _jsonable(getattr(body, field)) for field in fields_set},
     )
     await session.commit()
-    return success(_organization(updated))
+    return success(_organization(summary, chatbots_used))
 
 
 @router.get("/users")

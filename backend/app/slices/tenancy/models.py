@@ -1,6 +1,7 @@
 import uuid
+from datetime import date
 
-from sqlalchemy import ForeignKey, Index, String, text
+from sqlalchemy import Date, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +17,13 @@ class Organization(TimestampMixin, Base):
     plan: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="free"
     )
+    subscription_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="active"
+    )
+    subscription_starts_at: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=text("CURRENT_DATE")
+    )
+    subscription_ends_at: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Workspace(TimestampMixin, Base):

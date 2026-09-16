@@ -16,6 +16,7 @@ from app.slices.audit import api as audit_api
 from app.slices.authz import api as authz_api
 from app.slices.chatbots import api as chatbots_api
 from app.slices.conversations import engine, repository
+from app.slices.tenancy import api as tenancy_api
 from app.slices.conversations.models import Conversation, ConversationMessage
 from app.slices.conversations.schemas import (
     AgentMessage,
@@ -97,6 +98,16 @@ async def _load_definition(
     return flow.definition
 
 
+async def _require_active_subscription(session: AsyncSession, *, workspace_id: uuid.UUID) -> None:
+    sub = await tenancy_api.get_subscription_for_workspace(session, workspace_id=workspace_id)
+    if sub is not None and sub.effective_status != "active":
+        raise AppError(
+            code="SUBSCRIPTION_LOCKED",
+            message=f"This organisation's subscription is {sub.effective_status}. Contact the platform administrator.",
+            status_code=403,
+        )
+
+
 def _recent_history(
     messages: list[ConversationMessage], limit: int = 10
 ) -> list[dict[str, str]]:
@@ -160,6 +171,7 @@ async def widget_chatbot_profile(
             message="Chatbot not found or not published",
             status_code=404,
         )
+    await _require_active_subscription(session, workspace_id=chatbot.workspace_id)
     flow = await chatbots_api.get_current_flow(
         session, workspace_id=chatbot.workspace_id, chatbot_id=chatbot.id
     )
@@ -184,6 +196,7 @@ async def start_conversation(
             message="Chatbot not found or not published",
             status_code=404,
         )
+    await _require_active_subscription(session, workspace_id=chatbot.workspace_id)
     flow = await chatbots_api.get_current_flow(
         session, workspace_id=chatbot.workspace_id, chatbot_id=chatbot.id
     )

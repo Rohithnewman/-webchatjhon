@@ -219,6 +219,27 @@ async def select_workspace(
     return (await session.execute(statement)).scalar_one_or_none()
 
 
+async def count_org_seats(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
+    statement = (
+        select(func.count(func.distinct(Membership.user_id)))
+        .select_from(Membership)
+        .join(Workspace, Workspace.id == Membership.workspace_id)
+        .where(
+            Workspace.organization_id == organization_id,
+            Workspace.deleted_at.is_(None),
+            Membership.deleted_at.is_(None),
+        )
+    )
+    return int((await session.execute(statement)).scalar_one())
+
+
+async def list_org_workspace_ids(session: AsyncSession, *, organization_id: uuid.UUID) -> list[uuid.UUID]:
+    statement = select(Workspace.id).where(
+        Workspace.organization_id == organization_id, Workspace.deleted_at.is_(None)
+    )
+    return [row[0] for row in (await session.execute(statement)).all()]
+
+
 async def list_user_workspaces(
     session: AsyncSession, *, user_id: uuid.UUID
 ) -> list[tuple[Workspace, Organization, Role]]:

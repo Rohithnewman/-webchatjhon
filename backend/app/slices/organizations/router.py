@@ -17,6 +17,7 @@ from app.shared import permissions
 from app.shared.context import WorkspaceContext
 from app.slices.audit import api as audit_api
 from app.slices.authz import api as authz_api
+from app.slices.chatbots import api as chatbots_api
 from app.slices.organizations.schemas import NameUpdate, WorkspaceCreate
 from app.slices.tenancy import api as tenancy_api
 
@@ -45,11 +46,19 @@ def _workspace(summary: tenancy_api.WorkspaceSummary, current: uuid.UUID) -> dic
 
 async def _profile(session: AsyncSession, ctx: WorkspaceContext, organization: tenancy_api.OrganizationView) -> dict:
     workspaces = await tenancy_api.list_workspaces(session, organization_id=organization.id)
+    sub = await tenancy_api.get_subscription(session, organization_id=organization.id)
+    subscription = None
+    if sub is not None:
+        chatbots_used = await chatbots_api.count_for_workspaces(
+            session, workspace_ids=[w.id for w in workspaces]
+        )
+        subscription = tenancy_api.subscription_dict(sub, chatbots_used=chatbots_used)
     return {
         "id": str(organization.id),
         "name": organization.name,
         "plan": organization.plan,
         "workspaces": [_workspace(w, ctx.workspace_id) for w in workspaces],
+        "subscription": subscription,
     }
 
 

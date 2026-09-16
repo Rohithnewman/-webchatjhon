@@ -7,6 +7,7 @@ from app.core.envelope import success
 from app.core.errors import AppError
 from app.core.rate_limit import rate_limit
 from app.shared.context import Principal
+from app.slices.chatbots import api as chatbots_api
 from app.slices.identity import repository
 from app.slices.identity.dependencies import get_current_principal
 from app.slices.identity.schemas import (
@@ -124,6 +125,19 @@ async def me(
     membership = await tenancy_api.get_active_membership(
         session, user_id=user.id, workspace_id=principal.workspace_id
     )
+    sub = await tenancy_api.get_subscription_for_workspace(session, workspace_id=principal.workspace_id)
+    subscription = None
+    if sub is not None:
+        organization = await tenancy_api.get_organization_of_workspace(
+            session, workspace_id=principal.workspace_id
+        )
+        workspace_ids = (
+            await tenancy_api.list_org_workspace_ids(session, organization_id=organization.id)
+            if organization is not None
+            else []
+        )
+        chatbots_used = await chatbots_api.count_for_workspaces(session, workspace_ids=workspace_ids)
+        subscription = tenancy_api.subscription_dict(sub, chatbots_used=chatbots_used)
     return success(
         {
             "user_id": str(user.id),
@@ -133,5 +147,6 @@ async def me(
             "workspace_id": str(principal.workspace_id),
             "role": membership.role_name if membership else None,
             "permissions": list(membership.permissions) if membership else [],
+            "subscription": subscription,
         }
     )
