@@ -18,11 +18,12 @@ export function PrimaryNav() {
   };
 
   const isChatbotActive = path.startsWith("/chatbots") || path.startsWith("/builder");
+  const isSuperadmin = Boolean(me?.is_superadmin);
 
   return (
     <aside className="primary-icon-nav" aria-label="Main Navigation">
       <div className="primary-nav-top">
-        <Link to="/chatbots" className="primary-logo-link" title="Ambot365">
+        <Link to={isSuperadmin ? "/admin" : "/chatbots"} className="primary-logo-link" title="Ambot365">
           <div className="primary-logo-icon">
             <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
               <path
@@ -43,31 +44,34 @@ export function PrimaryNav() {
         </Link>
 
         <nav className="primary-nav-menu">
-          <Link to="/chatbots" className={`primary-nav-btn ${isChatbotActive ? "is-active" : ""}`} title="Chatbots">
-            <Bot size={20} /><span>Chatbot</span>
-          </Link>
-          <Link to="/conversations" className={`primary-nav-btn ${path.startsWith("/conversations") ? "is-active" : ""}`} title="Inbox">
-            <MessageSquare size={20} /><span>Inbox</span>
-          </Link>
-          <Link to="/knowledge" className={`primary-nav-btn ${path.startsWith("/knowledge") ? "is-active" : ""}`} title="Knowledge base">
-            <BookOpen size={20} /><span>Knowledge</span>
-          </Link>
-          <Link to="/analytics" className={`primary-nav-btn ${path.startsWith("/analytics") ? "is-active" : ""}`} title="Analytics">
-            <BarChart3 size={20} /><span>Analytics</span>
-          </Link>
-          <Link to="/settings" className={`primary-nav-btn ${path.startsWith("/settings") ? "is-active" : ""}`} title="Settings">
-            <Settings size={20} /><span>Settings</span>
-          </Link>
-          {me?.is_superadmin && (
+          {isSuperadmin ? (
             <Link to="/admin" className={`primary-nav-btn ${path.startsWith("/admin") ? "is-active" : ""}`} title="Platform admin">
               <ShieldCheck size={20} /><span>Admin</span>
             </Link>
+          ) : (
+            <>
+              <Link to="/chatbots" className={`primary-nav-btn ${isChatbotActive ? "is-active" : ""}`} title="Chatbots">
+                <Bot size={20} /><span>Chatbot</span>
+              </Link>
+              <Link to="/conversations" className={`primary-nav-btn ${path.startsWith("/conversations") ? "is-active" : ""}`} title="Inbox">
+                <MessageSquare size={20} /><span>Inbox</span>
+              </Link>
+              <Link to="/knowledge" className={`primary-nav-btn ${path.startsWith("/knowledge") ? "is-active" : ""}`} title="Knowledge base">
+                <BookOpen size={20} /><span>Knowledge</span>
+              </Link>
+              <Link to="/analytics" className={`primary-nav-btn ${path.startsWith("/analytics") ? "is-active" : ""}`} title="Analytics">
+                <BarChart3 size={20} /><span>Analytics</span>
+              </Link>
+              <Link to="/settings" className={`primary-nav-btn ${path.startsWith("/settings") ? "is-active" : ""}`} title="Settings">
+                <Settings size={20} /><span>Settings</span>
+              </Link>
+            </>
           )}
         </nav>
       </div>
 
       <div className="primary-nav-bottom">
-        <WorkspaceSwitcher />
+        {!isSuperadmin && <WorkspaceSwitcher />}
         <button
           type="button"
           className="primary-nav-btn signout-btn"

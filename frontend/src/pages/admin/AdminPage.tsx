@@ -194,7 +194,13 @@ function Users({ myUserId }: { myUserId: string }) {
                     <Button size="sm" variant={user.is_active ? "danger" : "secondary"} disabled={isMe} onClick={() => update.mutate({ id: user.id, flags: { is_active: !user.is_active } })}>
                       {user.is_active ? "Deactivate" : "Reactivate"}
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={isMe} onClick={() => update.mutate({ id: user.id, flags: { is_superadmin: !user.is_superadmin } })}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isMe || (!user.is_superadmin && user.organizations.length > 0)}
+                      title={!user.is_superadmin && user.organizations.length > 0 ? "Belongs to an organisation — superadmins have no tenancy" : undefined}
+                      onClick={() => update.mutate({ id: user.id, flags: { is_superadmin: !user.is_superadmin } })}
+                    >
                       {user.is_superadmin ? "Revoke admin" : "Make admin"}
                     </Button>
                   </td>

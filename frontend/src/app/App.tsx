@@ -18,6 +18,28 @@ import { SubscriptionLockedPage } from "../pages/locked/SubscriptionLockedPage";
 import { SettingsPage } from "../pages/settings/SettingsPage";
 import { LoadingState, ToastProvider } from "../shared/ui";
 
+/** Where an authenticated user lands: superadmins have no tenancy so they go
+ *  straight to the admin console, everyone else to their chatbots. Used for
+ *  `/`, the authenticated branch of `/login` and `/register`, and the
+ *  catch-all route. While `/auth/me` is still resolving it renders a loading
+ *  state instead of guessing, to avoid a flash to the wrong destination. */
+function HomeRedirect() {
+  const { me, isReady } = useMe();
+  if (!isReady) return <LoadingState label="Opening workspace..." />;
+  return <Navigate to={me?.is_superadmin ? "/admin" : "/chatbots"} replace />;
+}
+
+/** Wraps every tenant-facing route element (everything except /admin, /login
+ *  and /register). Superadmins carry no tenancy, so any tenant route they
+ *  land on — directly, via a stale link, or via browser back — bounces them
+ *  to /admin instead of rendering. Non-superadmins, and anyone whose `me` is
+ *  still loading, see the route as normal. */
+function SuperadminOnly({ children }: { children: ReactNode }) {
+  const { me, isReady } = useMe();
+  if (isReady && me?.is_superadmin) return <Navigate to="/admin" replace />;
+  return <>{children}</>;
+}
+
 /** Wraps every routed page. Once `/auth/me` resolves, a non-superadmin whose
  *  organisation is suspended or expired sees the lock screen instead of the
  *  route they asked for — except on /login and /register, which never need
@@ -58,51 +80,106 @@ function AppRoutes() {
   return (
     <LockedGuard>
       <Routes>
+        <Route path="/" element={authenticated ? <HomeRedirect /> : <Navigate to="/login" replace />} />
         <Route
           path="/login"
-          element={authenticated ? <Navigate to="/chatbots" replace /> : <LoginPage />}
+          element={authenticated ? <HomeRedirect /> : <LoginPage />}
         />
         <Route
           path="/register"
           element={
-            authenticated ? <Navigate to="/chatbots" replace /> : <AuthPage mode="register" />
+            authenticated ? <HomeRedirect /> : <AuthPage mode="register" />
           }
         />
         <Route
           path="/chatbots"
-          element={authenticated ? <ChatFlowsPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><ChatFlowsPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/chatbots/:chatbotId/flows"
-          element={authenticated ? <ChatFlowsPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><ChatFlowsPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/chatbots/:chatbotId/design"
-          element={authenticated ? <ChatbotDesignPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><ChatbotDesignPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/chatbots/:chatbotId/install"
-          element={authenticated ? <InstallChatbotPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><InstallChatbotPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/builder/:chatbotId?"
-          element={authenticated ? <BuilderPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><BuilderPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/conversations"
-          element={authenticated ? <ConversationsPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><ConversationsPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/knowledge"
-          element={authenticated ? <KnowledgePage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><KnowledgePage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/settings"
-          element={authenticated ? <SettingsPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><SettingsPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/analytics"
-          element={authenticated ? <AnalyticsPage /> : <Navigate to="/login" replace />}
+          element={
+            authenticated ? (
+              <SuperadminOnly><AnalyticsPage /></SuperadminOnly>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
         <Route
           path="/admin"
@@ -110,7 +187,7 @@ function AppRoutes() {
         />
         <Route
           path="*"
-          element={<Navigate to={authenticated ? "/chatbots" : "/login"} replace />}
+          element={authenticated ? <HomeRedirect /> : <Navigate to="/login" replace />}
         />
       </Routes>
     </LockedGuard>

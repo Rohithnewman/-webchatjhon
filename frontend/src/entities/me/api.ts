@@ -9,7 +9,7 @@ export interface Me {
   email: string;
   full_name: string;
   is_superadmin: boolean;
-  workspace_id: string;
+  workspace_id: string | null;
   role: "owner" | "admin" | "member" | "viewer" | null;
   permissions: string[];
   subscription: Subscription | null;
