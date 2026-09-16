@@ -1,7 +1,8 @@
 import { apiRequest } from "../../shared/api/client";
+import type { Subscription } from "../admin/api";
 
 export interface OrgWorkspace { id: string; name: string; member_count: number; created_at: string; is_current: boolean; }
-export interface OrganizationProfile { id: string; name: string; plan: string; workspaces: OrgWorkspace[]; }
+export interface OrganizationProfile { id: string; name: string; plan: string; workspaces: OrgWorkspace[]; subscription: Subscription; }
 export interface MyWorkspace { workspace_id: string; workspace_name: string; organization_id: string; organization_name: string; role: string; is_current: boolean; }
 
 export const organizationApi = {

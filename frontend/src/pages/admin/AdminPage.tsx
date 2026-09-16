@@ -2,9 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
-import { PLANS, adminApi, type Plan } from "../../entities/admin/api";
+import {
+  PLANS,
+  SUBSCRIPTION_STATUSES,
+  adminApi,
+  type AdminOrganization,
+  type EffectiveStatus,
+  type Plan,
+  type SubscriptionPatch,
+  type SubscriptionStatus,
+} from "../../entities/admin/api";
 import { useMe } from "../../entities/me/api";
-import { Badge, Button, EmptyState, LoadingState, Panel, Select, Tabs, useToast, type TabItem } from "../../shared/ui";
+import { Badge, Button, EmptyState, LoadingState, Panel, Select, Tabs, useToast, type BadgeTone, type TabItem } from "../../shared/ui";
 import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 type AdminTab = "overview" | "organizations" | "users";
@@ -46,17 +55,27 @@ function Overview() {
       {([["Organisations", s.organizations], ["Workspaces", s.workspaces], ["Users", s.users], ["Chatbots", s.chatbots], ["Conversations", s.conversations]] as const).map(([label, value]) => (
         <div key={label} className="stat-tile"><span className="stat-label">{label}</span><strong className="stat-value">{value}</strong></div>
       ))}
+      <div className={`stat-tile${s.locked_organizations > 0 ? " is-warn" : ""}`}>
+        <span className="stat-label">Suspended or expired</span>
+        <strong className="stat-value">{s.locked_organizations}</strong>
+      </div>
     </div>
   );
+}
+
+const EFFECTIVE_TONE: Record<EffectiveStatus, BadgeTone> = { active: "brand", suspended: "warning", expired: "danger" };
+
+function formatLimit(used: number, limit: number | null) {
+  return `${used}/${limit ?? "∞"}`;
 }
 
 function Organizations() {
   const toast = useToast();
   const client = useQueryClient();
   const orgs = useQuery({ queryKey: ["admin", "organizations"], queryFn: adminApi.organizations });
-  const setPlan = useMutation({
-    mutationFn: (input: { id: string; plan: Plan }) => adminApi.setPlan(input.id, input.plan),
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ["admin"] }); toast.success("Plan updated"); },
+  const update = useMutation({
+    mutationFn: (input: { id: string; patch: SubscriptionPatch }) => adminApi.updateSubscription(input.id, input.patch),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ["admin"] }); toast.success("Subscription updated"); },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
   if (!orgs.data) return <LoadingState label="Loading organisations" />;
@@ -65,25 +84,83 @@ function Organizations() {
       <Panel.Header title={`Organisations (${orgs.data.length})`} />
       <Panel.Body flush>
         <table className="simple-table">
-          <thead><tr><th>Name</th><th>Plan</th><th>Workspaces</th><th>Members</th><th>Created</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Period</th>
+              <th>Effective</th>
+              <th>Usage</th>
+              <th>Workspaces</th>
+              <th>Created</th>
+            </tr>
+          </thead>
           <tbody>
             {orgs.data.map((org) => (
-              <tr key={org.id}>
-                <td>{org.name}</td>
-                <td>
-                  <Select value={org.plan} onChange={(e) => setPlan.mutate({ id: org.id, plan: e.target.value as Plan })} aria-label={`Plan for ${org.name}`}>
-                    {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </Select>
-                </td>
-                <td>{org.workspace_count}</td>
-                <td>{org.member_count}</td>
-                <td>{new Date(org.created_at).toLocaleDateString()}</td>
-              </tr>
+              <OrganizationRow key={org.id} org={org} onPatch={(patch) => update.mutate({ id: org.id, patch })} pending={update.isPending} />
             ))}
           </tbody>
         </table>
       </Panel.Body>
     </Panel>
+  );
+}
+
+function OrganizationRow({
+  org,
+  onPatch,
+  pending,
+}: {
+  org: AdminOrganization;
+  onPatch: (patch: SubscriptionPatch) => void;
+  pending: boolean;
+}) {
+  const sub = org.subscription;
+  return (
+    <tr>
+      <td>{org.name}</td>
+      <td>
+        <Select value={sub.plan} disabled={pending} onChange={(e) => onPatch({ plan: e.target.value as Plan })} aria-label={`Plan for ${org.name}`}>
+          {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
+        </Select>
+      </td>
+      <td>
+        <Select value={sub.status} disabled={pending} onChange={(e) => onPatch({ status: e.target.value as SubscriptionStatus })} aria-label={`Status for ${org.name}`}>
+          {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </Select>
+      </td>
+      <td>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            type="date"
+            className="subscription-date-input"
+            value={sub.starts_at}
+            disabled={pending}
+            onChange={(e) => e.target.value && onPatch({ starts_at: e.target.value })}
+            aria-label={`Start date for ${org.name}`}
+          />
+          <span aria-hidden>→</span>
+          <input
+            type="date"
+            className="subscription-date-input"
+            value={sub.ends_at ?? ""}
+            disabled={pending}
+            onChange={(e) => onPatch({ ends_at: e.target.value || null })}
+            aria-label={`End date for ${org.name}`}
+          />
+          {sub.ends_at ? (
+            <Button size="sm" variant="ghost" disabled={pending} onClick={() => onPatch({ ends_at: null })}>
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      </td>
+      <td><Badge tone={EFFECTIVE_TONE[sub.effective_status]}>{sub.effective_status}</Badge></td>
+      <td>{formatLimit(sub.seats_used, sub.seat_limit)} seats · {formatLimit(sub.chatbots_used, sub.chatbot_limit)} bots</td>
+      <td>{org.workspace_count}</td>
+      <td>{new Date(org.created_at).toLocaleDateString()}</td>
+    </tr>
   );
 }
 

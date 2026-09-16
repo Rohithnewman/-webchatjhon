@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiRequest } from "../../shared/api/client";
+import type { Subscription } from "../admin/api";
 import { useAuthStore } from "../session/auth-store";
 
 export interface Me {
@@ -11,6 +12,7 @@ export interface Me {
   workspace_id: string;
   role: "owner" | "admin" | "member" | "viewer" | null;
   permissions: string[];
+  subscription: Subscription | null;
 }
 
 export const meApi = { get: () => apiRequest<Me>("/auth/me") };

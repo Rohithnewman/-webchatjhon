@@ -3,10 +3,16 @@ import { ArrowRightLeft, Building2, Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type { EffectiveStatus } from "../../entities/admin/api";
 import { useMe } from "../../entities/me/api";
 import { organizationApi } from "../../entities/organization/api";
 import { useAuthStore } from "../../entities/session/auth-store";
-import { Badge, Button, Field, Input, LoadingState, Panel, useToast } from "../../shared/ui";
+import { Badge, Button, Field, Input, LoadingState, Panel, useToast, type BadgeTone } from "../../shared/ui";
+
+const EFFECTIVE_TONE: Record<EffectiveStatus, BadgeTone> = { active: "brand", suspended: "warning", expired: "danger" };
+function formatLimit(used: number, limit: number | null) {
+  return `${used}/${limit ?? "∞"}`;
+}
 
 export function OrganizationPanel() {
   const toast = useToast();
@@ -32,10 +38,12 @@ export function OrganizationPanel() {
 
   if (!org.data) return <LoadingState label="Loading organisation" />;
 
+  const sub = org.data.subscription;
+
   return (
     <div className="settings-grid">
       <Panel>
-        <Panel.Header title="Organisation" meta={<Badge tone="brand">{org.data.plan} plan</Badge>} />
+        <Panel.Header title="Organisation" />
         <Panel.Body>
           <p className="form-hint"><Building2 size={14} /> <strong>{org.data.name}</strong>. The plan is set by the platform administrator.</p>
           {canManage && (
@@ -68,6 +76,19 @@ export function OrganizationPanel() {
               )}
             </div>
           ))}
+        </Panel.Body>
+      </Panel>
+
+      <Panel>
+        <Panel.Header title="Subscription" meta={<Badge tone={EFFECTIVE_TONE[sub.effective_status]}>{sub.effective_status}</Badge>} />
+        <Panel.Body>
+          <dl className="subscription-summary">
+            <div><dt>Plan</dt><dd style={{ textTransform: "capitalize" }}>{sub.plan}</dd></div>
+            <div><dt>Period</dt><dd>{sub.ends_at ? `${sub.starts_at} → ${sub.ends_at}` : `${sub.starts_at} → no expiry`}</dd></div>
+            <div><dt>Seats</dt><dd>{formatLimit(sub.seats_used, sub.seat_limit)}</dd></div>
+            <div><dt>Chatbots</dt><dd>{formatLimit(sub.chatbots_used, sub.chatbot_limit)}</dd></div>
+          </dl>
+          <p className="form-hint">Plan, status and period are set by the platform administrator.</p>
         </Panel.Body>
       </Panel>
     </div>

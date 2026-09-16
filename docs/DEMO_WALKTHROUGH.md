@@ -9,7 +9,8 @@ Before the session: run `scripts\start-demo.ps1`, wait for all three windows, ru
 Show the workspace name, the owner, and the agent member. Point out roles. Open Settings → Activity: every action so far is already recorded with actor and target. "Every table has a workspace id, every query requires it, and Postgres row-level security enforces it a second time."
 
 ## 2a. Three levels of administration (1 min)
-- Log in as **admin@admin.com** (superadmin): Admin → Overview shows every organisation, workspace, user, bot and conversation on the platform; Organisations tab changes Rogith's plan to "pro"; Users tab can deactivate an account. Point out: the superadmin sees *metadata*, never a tenant's conversations.
+- Log in as **admin@admin.com** (superadmin): Admin → Overview shows every organisation, workspace, user, bot and conversation on the platform, plus how many organisations are suspended or expired; Organisations tab changes Rogith's plan to "pro"; Users tab can deactivate an account. Point out: the superadmin sees *metadata*, never a tenant's conversations.
+- Suspend Northwind → log in as demo@northwind.example → lock screen → reactivate: in the Organisations tab, set Northwind Outdoor's status to "suspended"; in a private window, log in as demo@northwind.example and the dashboard is replaced by a lock screen ("This organisation has been suspended") with a Sign out button; back in the admin tab, set Northwind's status to "active" again and reload the private window — the dashboard is back.
 - Log back in as **rohithnewman@gmail.com** (organisation owner) — the account you started the session with: Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
 - Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
 
@@ -39,3 +40,4 @@ Run `pytest` (≈190 tests against a throwaway Postgres database) and `lint-impo
 - **Why Postgres jobs instead of Celery/Redis?** Tenant-scoped, transactional, inspectable with SQL, no Redis on Windows. Documented in the Phase 3 spec.
 - **Is the embedding real?** It is a deterministic local bag-of-words embedding behind the same interface a provider embedding uses; swapping to OpenAI embeddings changes one function. pgvector replaces the SQL cosine scan with one migration.
 - **What happens if the AI key is missing?** The AI node degrades to an apology message and the flow continues; nothing 500s.
+- **What happens to a suspended organisation's widgets?** The workspace API and the widget's own endpoints both check the subscription and return `403 SUBSCRIPTION_LOCKED`; the visitor-facing bot stops answering the same moment the admin flips the switch.

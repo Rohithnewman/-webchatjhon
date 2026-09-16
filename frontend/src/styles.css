@@ -4226,3 +4226,118 @@ input:checked + .slider:before {
 .routing-row .cust-dropdown {
   flex: 1;
 }
+
+/* ── Subscriptions (admin console, owner card, lock screen) ─────────────── */
+
+.subscription-date-input {
+  height: var(--control-sm, 32px);
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.subscription-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+  margin: 0 0 16px;
+}
+
+.subscription-summary dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin: 0 0 2px;
+}
+
+.subscription-summary dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.locked-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-9);
+  background: var(--color-brand-deep);
+}
+
+.locked-card {
+  width: min(100%, 460px);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
+  padding: var(--space-9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.locked-card .brand-mark {
+  color: var(--color-brand);
+}
+
+.locked-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.locked-card h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+.locked-copy {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+}
+
+.locked-details {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.locked-details > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.locked-details dt {
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.locked-details dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+}

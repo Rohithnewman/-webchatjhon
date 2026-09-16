@@ -78,7 +78,9 @@ The seed script, `set_password.py` and the demo passwords are for local demonstr
 | `viewer@rogith.example` | `ViewerPass123` | **viewer** in Rogith / Default — shows the read-only UI |
 | `demo@northwind.example` | `DemoPass123` | owner of a second organisation, **Northwind Outdoor**, so the superadmin console lists more than one tenant |
 
-Superadmin console: log in as admin@admin.com → the shield icon in the left rail.
+Rogith is on the pro plan; Northwind on free.
+
+Superadmin console: log in as admin@admin.com → the shield icon in the left rail. Organisations tab: change plan, suspend/reactivate, set the subscription period; a suspended or expired organisation is locked out and its widgets stop answering.
 
 Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
 
