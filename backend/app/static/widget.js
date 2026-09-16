@@ -87,6 +87,7 @@
   document.head.appendChild(overrides);
 
   var SIZES = { S: [320, 440], M: [360, 520], L: [400, 600], XL: [440, 660], XXL: [480, 720] };
+  var SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]{3,20}$/;
   var AVATARS = { ambot: "A", avatar1: "👨‍💼", avatar2: "🧔", avatar3: "🧑‍🦱", avatar4: "👨‍💻", robot: "🤖" };
   var design = {};
 
@@ -104,7 +105,7 @@
 
   function applyDesign(d) {
     design = d || {};
-    var accent = design.themeColor || ACCENT;
+    var accent = SAFE_COLOR.test(String(design.themeColor || "")) ? design.themeColor : ACCENT;
     var classic = design.styleMode === "classic";
     head.style.background = classic ? "#ffffff" : accent;
     head.style.color = classic ? "#1c1c28" : "#ffffff";
@@ -116,7 +117,7 @@
       ".wcb-opt{border-color:" + accent + ";color:" + accent + "}.wcb-opt-on,.wcb-opt-done{background:" + accent + ";color:#fff}" +
       ".wcb-avatar{background:" + (classic ? accent : "rgba(255,255,255,.25)") + "}" +
       "@media (max-width:480px){.wcb-root{left:" + (design.positionMobile === "left" ? "16px" : "auto") + ";right:" + (design.positionMobile === "left" ? "auto" : "16px") + "}}";
-    if (design.chatBgColor) log.style.background = design.chatBgColor;
+    if (design.chatBgColor && SAFE_COLOR.test(String(design.chatBgColor))) log.style.background = design.chatBgColor;
     if (design.fontFamily) root.style.fontFamily = design.fontFamily;
     if (design.botTitle) title.textContent = design.botTitle;
     subtitle.textContent = design.botStatusText || "";

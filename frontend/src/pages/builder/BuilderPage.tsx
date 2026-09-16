@@ -186,7 +186,7 @@ function BuilderWorkspace() {
         selectedChatbot={selectedChatbot}
         onSelectChatbot={(id) => navigate(`/builder/${id}`)}
         onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
-        onOpenTemplates={() => setTemplatesOpen(true)}
+        onOpenTemplates={readOnly ? undefined : () => setTemplatesOpen(true)}
       />
 
       <main className="ambot-main-viewport">

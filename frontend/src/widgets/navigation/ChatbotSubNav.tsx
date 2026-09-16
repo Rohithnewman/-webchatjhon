@@ -48,14 +48,10 @@ export function ChatbotSubNav({
       </div>
 
       <div className="chatbot-selector-section">
-        <button
-          type="button"
-          className="all-chatbots-link"
-          onClick={() => {}}
-        >
+        <Link to="/chatbots" className="all-chatbots-link">
           <span className="dot-circle" />
           <span>All Chatbots</span>
-        </button>
+        </Link>
 
         <div className="bot-dropdown-wrapper">
           <div className="bot-dropdown-btn">
@@ -113,10 +109,12 @@ export function ChatbotSubNav({
           <span>Settings</span>
         </Link>
 
-        <button type="button" className="sub-menu-item" onClick={onOpenTemplates}>
-          <Layers size={17} />
-          <span>Chat Flow Templates</span>
-        </button>
+        {onOpenTemplates && (
+          <button type="button" className="sub-menu-item" onClick={onOpenTemplates}>
+            <Layers size={17} />
+            <span>Chat Flow Templates</span>
+          </button>
+        )}
       </nav>
     </aside>
   );

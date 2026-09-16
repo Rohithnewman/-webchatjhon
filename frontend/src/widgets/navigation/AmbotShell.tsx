@@ -52,7 +52,7 @@ export function AmbotShell({ children }: Props) {
         selectedChatbot={selectedChatbot}
         onSelectChatbot={handleSelectBot}
         onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
-        onOpenTemplates={() => setTemplatesOpen(true)}
+        onOpenTemplates={readOnly ? undefined : () => setTemplatesOpen(true)}
       />
 
       <main className="ambot-main-viewport">

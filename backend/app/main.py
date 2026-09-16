@@ -57,14 +57,14 @@ def create_app() -> FastAPI:
     async def widget_js() -> FileResponse:
         return FileResponse(
             _WIDGET_JS,
-            media_type="application/javascript",
+            media_type="application/javascript; charset=utf-8",
             headers={"Cache-Control": "public, max-age=3600"},
         )
 
     @app.get("/demo", include_in_schema=False)
     async def demo_page(request: Request, chatbot_id: str = "") -> HTMLResponse:
         """A fake customer site with the widget installed, for live demos."""
-        root = str(request.base_url).rstrip("/")
+        root = html.escape(str(request.base_url).rstrip("/"))
         page = (
             _DEMO_HTML.read_text(encoding="utf-8")
             .replace("__CHATBOT_ID__", html.escape(chatbot_id) or "(missing — add ?chatbot_id=…)")
