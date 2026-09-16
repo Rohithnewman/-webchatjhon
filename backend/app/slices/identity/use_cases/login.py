@@ -66,6 +66,24 @@ async def login(session: AsyncSession, *, email: str, password: str) -> TokenBun
         await session.commit()
         raise _invalid_credentials()
 
+    if user.is_superadmin:
+        # D1: a superadmin has no tenancy — issue a token with no workspace,
+        # ignoring any memberships (the bootstrap script detaches them, but
+        # this skips the resolution entirely regardless).
+        user.failed_login_count = 0
+        user.locked_until = None
+        bundle = await issue_tokens(
+            session, user_id=user.id, email=user.email, workspace_id=None
+        )
+        await audit_api.record(
+            session,
+            action=audit_api.actions.LOGIN,
+            workspace_id=None,
+            actor_id=user.id,
+        )
+        await session.commit()
+        return bundle
+
     workspace_id = user.last_workspace_id
     if workspace_id is None:
         workspace_id = await tenancy_api.get_earliest_workspace_id(

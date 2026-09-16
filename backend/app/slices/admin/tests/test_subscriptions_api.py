@@ -33,12 +33,22 @@ def _headers(bundle: dict) -> dict:
 
 
 async def _superadmin(client, session) -> dict:
-    bundle = await _register(client, f"root-{uuid.uuid4().hex[:8]}@platform.test", "Platform")
-    await identity_api.set_user_flags(
-        session, user_id=uuid.UUID(bundle["user_id"]), is_superadmin=True
+    # `ensure_superadmin` (unlike a bare `set_user_flags`) also detaches any
+    # memberships, matching production promotion (D1: a superadmin carries
+    # no tenancy). The registration token above still carries a
+    # `workspace_id` claim minted before the promotion, so log in again for
+    # a token that reflects the post-promotion state.
+    email = f"root-{uuid.uuid4().hex[:8]}@platform.test"
+    await _register(client, email, "Platform")
+    await identity_api.ensure_superadmin(
+        session, email=email, password="Secret123", full_name="Root"
     )
-    await session.flush()
-    return bundle
+    await session.commit()
+    response = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "Secret123"}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
 
 
 async def _org_id(client, root_headers: dict, name: str) -> str:

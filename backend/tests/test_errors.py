@@ -73,3 +73,20 @@ async def test_unhandled_exception_renders_500_envelope():
         "message": "Internal server error",
         "details": None,
     }
+
+
+async def test_500_carries_cors_headers_for_allowed_origin():
+    # D4: a 500 is otherwise invisible to the browser as a server error — no
+    # CORS headers means the client sees an opaque network/CORS failure
+    # instead of a 500 it can report.
+    transport = ASGITransport(app=_app_with_probe_routes(), raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://t") as ac:
+        resp = await ac.get(
+            "/api/v1/_probe/unhandled",
+            headers={"Origin": "http://127.0.0.1:5173"},
+        )
+
+    assert resp.status_code == 500
+    assert resp.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+    assert resp.headers["vary"] == "Origin"
+    assert resp.headers["access-control-allow-credentials"] == "true"

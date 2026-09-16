@@ -22,6 +22,20 @@ async def get_workspace_context(
             message="User is inactive or no longer exists",
             status_code=401,
         )
+    if user.is_superadmin:
+        # D1: a superadmin has no tenancy — every workspace-scoped route
+        # refuses it outright.
+        raise AppError(
+            code="SUPERADMIN_HAS_NO_WORKSPACE",
+            message="Superadmins manage the platform and have no workspace",
+            status_code=403,
+        )
+    if principal.workspace_id is None:
+        raise AppError(
+            code="NO_WORKSPACE",
+            message="This session has no workspace",
+            status_code=403,
+        )
     membership = await tenancy_api.get_active_membership(
         session, user_id=principal.user_id, workspace_id=principal.workspace_id
     )

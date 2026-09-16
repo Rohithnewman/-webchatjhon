@@ -160,6 +160,15 @@ async def remove_membership(
     return True
 
 
+async def remove_all_memberships(session: AsyncSession, *, user_id: uuid.UUID) -> int:
+    """Soft-delete every active membership of the user, across every
+    workspace. Used when promoting a superadmin (D1: no tenancy) — the
+    account must carry no organisation, no workspace, no membership."""
+    return await repository.soft_delete_all_memberships_for_user(
+        session, user_id=user_id
+    )
+
+
 PLANS = ("free", "pro", "enterprise")
 
 SUBSCRIPTION_STATUSES = ("active", "suspended")

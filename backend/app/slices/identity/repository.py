@@ -38,7 +38,7 @@ async def insert_refresh_token(
     session: AsyncSession,
     *,
     user_id: uuid.UUID,
-    workspace_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
     family_id: uuid.UUID,
     token_hash: str,
     expires_at: datetime,

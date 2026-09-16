@@ -102,6 +102,12 @@ async def add_member(
         user = await identity_api.create_user(
             session, email=str(body.email), password=body.password, full_name=body.full_name
         )
+    elif user.is_superadmin:
+        raise AppError(
+            code="SUPERADMIN_CANNOT_JOIN",
+            message="Superadmins manage the platform and cannot join a workspace",
+            status_code=400,
+        )
     existing = [
         row for row in await tenancy_api.list_memberships(session, workspace_id=ctx.workspace_id)
         if row.user_id == user.id

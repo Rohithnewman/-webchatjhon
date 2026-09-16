@@ -148,6 +148,14 @@ async def update_user(
 ) -> dict:
     if user_id == admin.id:
         raise AppError(code="CANNOT_EDIT_SELF", message="You cannot change your own flags", status_code=400)
+    if body.is_superadmin:
+        memberships = await tenancy_api.list_user_workspaces(session, user_id=user_id)
+        if memberships:
+            raise AppError(
+                code="USER_IS_TENANT_MEMBER",
+                message="This user belongs to an organisation; remove their memberships before promoting them",
+                status_code=409,
+            )
     updated = await identity_api.set_user_flags(
         session, user_id=user_id, is_active=body.is_active, is_superadmin=body.is_superadmin
     )

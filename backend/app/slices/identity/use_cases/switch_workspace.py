@@ -16,10 +16,18 @@ async def switch_workspace(
     session: AsyncSession,
     *,
     user_id: uuid.UUID,
-    current_workspace_id: uuid.UUID,
+    current_workspace_id: uuid.UUID | None,
     refresh_token: str,
     target_workspace_id: uuid.UUID,
 ) -> TokenBundle:
+    if current_workspace_id is None:
+        # D1: a superadmin has no tenancy, so there is no workspace to
+        # switch away from.
+        raise AppError(
+            code="SUPERADMIN_HAS_NO_WORKSPACE",
+            message="Superadmins manage the platform and have no workspace",
+            status_code=403,
+        )
     try:
         payload = security.decode_token(refresh_token, expected_type="refresh")
     except security.TokenError as exc:

@@ -51,7 +51,9 @@ def _encode(
     return token, expires_at
 
 
-def create_access_token(*, sub: str, email: str, workspace_id: str) -> str:
+def create_access_token(*, sub: str, email: str, workspace_id: str | None) -> str:
+    """`workspace_id` is `None` for a superadmin (D1): the platform account
+    carries no tenancy, so the claim is emitted as JSON `null`."""
     token, _ = _encode(
         {"sub": sub, "email": email, "workspace_id": workspace_id},
         token_type="access",
@@ -61,7 +63,7 @@ def create_access_token(*, sub: str, email: str, workspace_id: str) -> str:
 
 
 def create_refresh_token(
-    *, sub: str, workspace_id: str, family_id: str
+    *, sub: str, workspace_id: str | None, family_id: str
 ) -> tuple[str, datetime]:
     return _encode(
         {"sub": sub, "workspace_id": workspace_id, "family_id": family_id},

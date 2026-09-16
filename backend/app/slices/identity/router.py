@@ -35,7 +35,7 @@ def _serialize(bundle: TokenBundle) -> dict:
         "access_token": bundle.access_token,
         "refresh_token": bundle.refresh_token,
         "user_id": str(bundle.user_id),
-        "workspace_id": str(bundle.workspace_id),
+        "workspace_id": str(bundle.workspace_id) if bundle.workspace_id else None,
     }
 
 
@@ -122,6 +122,20 @@ async def me(
     user = await repository.select_user(session, principal.user_id)
     if user is None or not user.is_active:
         raise AppError(code="UNAUTHENTICATED", message="User is inactive", status_code=401)
+    if principal.workspace_id is None:
+        # D1: a superadmin has no tenancy.
+        return success(
+            {
+                "user_id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "is_superadmin": user.is_superadmin,
+                "workspace_id": None,
+                "role": None,
+                "permissions": [],
+                "subscription": None,
+            }
+        )
     membership = await tenancy_api.get_active_membership(
         session, user_id=user.id, workspace_id=principal.workspace_id
     )

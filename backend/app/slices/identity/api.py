@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.core.errors import AppError
 from app.slices.identity import repository
+from app.slices.tenancy import api as tenancy_api
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,10 @@ async def set_user_flags(
 async def ensure_superadmin(
     session: AsyncSession, *, email: str, password: str, full_name: str
 ) -> UserSummary:
-    """Create the user if needed, then make sure the flag is set. Idempotent."""
+    """Create the user if needed, then make sure the flag is set. Also
+    detaches any existing memberships (D1: a superadmin has no tenancy — no
+    organisation, no workspace, no membership), which matters when promoting
+    an account that was previously a tenant member. Idempotent."""
     existing = await repository.select_user_by_email(session, email.strip().lower(), for_update=True)
     if existing is None:
         created = await create_user(session, email=email, password=password, full_name=full_name)
@@ -107,6 +111,7 @@ async def ensure_superadmin(
         user_id = existing.id
     summary = await set_user_flags(session, user_id=user_id, is_superadmin=True)
     assert summary is not None
+    await tenancy_api.remove_all_memberships(session, user_id=user_id)
     return summary
 
 

@@ -1,5 +1,3 @@
-import uuid
-
 from app.slices.identity import api as identity_api
 
 
@@ -17,12 +15,21 @@ def _headers(bundle: dict) -> dict:
 
 
 async def _superadmin(client, session) -> dict:
-    bundle = await _register(client, "root@platform.test", "Platform")
-    await identity_api.set_user_flags(
-        session, user_id=uuid.UUID(bundle["user_id"]), is_superadmin=True
+    # `ensure_superadmin` (unlike a bare `set_user_flags`) also detaches any
+    # memberships, matching production promotion (D1: a superadmin carries
+    # no tenancy). The registration token above still carries a
+    # `workspace_id` claim minted before the promotion, so log in again for
+    # a token that reflects the post-promotion state.
+    await _register(client, "root@platform.test", "Platform")
+    await identity_api.ensure_superadmin(
+        session, email="root@platform.test", password="Secret123", full_name="Root"
     )
-    await session.flush()
-    return bundle
+    await session.commit()
+    response = await client.post(
+        "/api/v1/auth/login", json={"email": "root@platform.test", "password": "Secret123"}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
 
 
 async def test_me_reports_role_and_superadmin_flag(client, session):
@@ -107,10 +114,19 @@ async def test_change_plan_and_user_flags(client, session):
     denied = await client.get("/api/v1/chatbots", headers=_headers(acme))
     assert denied.status_code == 401
 
-    promoted = await client.patch(
-        f"/api/v1/admin/users/{acme_user['id']}", json={"is_superadmin": True, "is_active": True}, headers=_headers(root)
+    reactivated = await client.patch(
+        f"/api/v1/admin/users/{acme_user['id']}", json={"is_active": True}, headers=_headers(root)
     )
-    assert promoted.json()["data"]["is_superadmin"] is True
+    assert reactivated.status_code == 200
+    assert reactivated.json()["data"]["is_active"] is True
+
+    # D1: a superadmin carries no tenancy — a tenant member (owner@acme.test
+    # still has an active membership in Acme) cannot be promoted.
+    promoted = await client.patch(
+        f"/api/v1/admin/users/{acme_user['id']}", json={"is_superadmin": True}, headers=_headers(root)
+    )
+    assert promoted.status_code == 409
+    assert promoted.json()["error"] == "USER_IS_TENANT_MEMBER"
 
     self_edit = await client.patch(
         f"/api/v1/admin/users/{root['user_id']}", json={"is_superadmin": False}, headers=_headers(root)

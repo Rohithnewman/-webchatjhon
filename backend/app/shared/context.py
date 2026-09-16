@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class Principal:
     user_id: uuid.UUID
     email: str
-    workspace_id: uuid.UUID
+    workspace_id: uuid.UUID | None  # None for a superadmin (D1: no tenancy)
 
 
 @dataclass(frozen=True)

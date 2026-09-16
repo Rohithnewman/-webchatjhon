@@ -48,8 +48,8 @@ class RefreshToken(CreatedAtMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=True, index=True
     )
     family_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), nullable=False, index=True

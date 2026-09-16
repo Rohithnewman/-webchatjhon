@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -127,6 +127,19 @@ async def select_membership(
 async def soft_delete_membership(session: AsyncSession, *, membership: Membership) -> None:
     membership.deleted_at = datetime.now(timezone.utc)
     await session.flush()
+
+
+async def soft_delete_all_memberships_for_user(
+    session: AsyncSession, *, user_id: uuid.UUID
+) -> int:
+    statement = (
+        update(Membership)
+        .where(Membership.user_id == user_id, Membership.deleted_at.is_(None))
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    result = await session.execute(statement)
+    await session.flush()
+    return result.rowcount or 0
 
 
 async def list_organizations_with_counts(

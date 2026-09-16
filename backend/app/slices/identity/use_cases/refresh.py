@@ -15,9 +15,12 @@ def _invalid_refresh(message: str = "Invalid refresh token") -> AppError:
 
 
 def _claims_match(payload: dict, stored) -> bool:
+    stored_workspace_id = (
+        str(stored.workspace_id) if stored.workspace_id is not None else None
+    )
     return (
         payload.get("sub") == str(stored.user_id)
-        and payload.get("workspace_id") == str(stored.workspace_id)
+        and payload.get("workspace_id") == stored_workspace_id
         and payload.get("family_id") == str(stored.family_id)
     )
 
@@ -52,15 +55,16 @@ async def refresh(session: AsyncSession, *, refresh_token: str) -> TokenBundle:
     user = await repository.select_user(session, stored.user_id)
     if user is None or not user.is_active:
         raise _invalid_refresh()
-    membership = await tenancy_api.get_active_membership(
-        session, user_id=user.id, workspace_id=stored.workspace_id
-    )
-    if membership is None:
-        raise AppError(
-            code="FORBIDDEN",
-            message="No active membership for that workspace",
-            status_code=403,
+    if stored.workspace_id is not None:
+        membership = await tenancy_api.get_active_membership(
+            session, user_id=user.id, workspace_id=stored.workspace_id
         )
+        if membership is None:
+            raise AppError(
+                code="FORBIDDEN",
+                message="No active membership for that workspace",
+                status_code=403,
+            )
 
     await repository.revoke_refresh_token(session, token=stored)
     bundle = await issue_tokens(

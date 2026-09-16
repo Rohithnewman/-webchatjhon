@@ -2,8 +2,11 @@
 
     .venv\\Scripts\\python.exe -m scripts.create_superadmin --email admin@admin.com --password "AdminPassword123!" --name "Platform Admin"
 
-A superadmin still logs in through the normal dashboard, which needs a
-workspace, so a personal "Platform" organisation is created on first run.
+D1: a superadmin has no tenancy — no organisation, no workspace, no
+membership. It logs in through the normal dashboard, which routes it
+straight to /admin instead of a workspace. `ensure_superadmin` detaches any
+memberships the account may already have (e.g. if it was previously a
+tenant owner), so this script only needs to call it.
 """
 
 import argparse
@@ -11,19 +14,13 @@ import asyncio
 
 from app.core.database import async_session_factory
 from app.slices.identity import api as identity_api
-from app.slices.tenancy import api as tenancy_api
 
 
 async def ensure(email: str, password: str, name: str) -> None:
     async with async_session_factory() as session:
-        user = await identity_api.ensure_superadmin(session, email=email, password=password, full_name=name)
-        if await tenancy_api.get_earliest_workspace_id(session, user_id=user.id) is None:
-            tenant = await tenancy_api.create_tenant(session, org_name="Platform", workspace_name="Admin")
-            owner = await tenancy_api.get_role_by_name(session, "owner")
-            assert owner is not None, "system roles are not seeded — run alembic upgrade head"
-            await tenancy_api.create_membership(
-                session, user_id=user.id, workspace_id=tenant.workspace_id, role_id=owner.id
-            )
+        await identity_api.ensure_superadmin(
+            session, email=email, password=password, full_name=name
+        )
         await session.commit()
         print(f"superadmin ready: {email}")
 
