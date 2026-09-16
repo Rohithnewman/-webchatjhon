@@ -33,7 +33,7 @@ async def require_superadmin(
     return user
 
 
-def _organization(summary: tenancy_api.OrganizationSummary, chatbots_used: int) -> dict:
+def _organization(summary: tenancy_api.OrganizationSummary, chatbots_used: int, conversations_used: int) -> dict:
     return {
         "id": str(summary.id),
         "name": summary.name,
@@ -41,13 +41,23 @@ def _organization(summary: tenancy_api.OrganizationSummary, chatbots_used: int) 
         "created_at": summary.created_at.isoformat(),
         "workspace_count": summary.workspace_count,
         "member_count": summary.member_count,
-        "subscription": tenancy_api.subscription_dict(summary.subscription, chatbots_used=chatbots_used),
+        "subscription": tenancy_api.subscription_dict(
+            summary.subscription, chatbots_used=chatbots_used, conversations_used=conversations_used
+        ),
     }
 
 
 async def _chatbots_used(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
     workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=organization_id)
     return await chatbots_api.count_for_workspaces(session, workspace_ids=workspace_ids)
+
+
+async def _conversations_used(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
+    workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=organization_id)
+    since = tenancy_api.current_month_start()
+    return await conversations_api.count_started_since_for_workspaces(
+        session, workspace_ids=workspace_ids, since=since
+    )
 
 
 def _user(summary: identity_api.UserSummary, organizations: list[str]) -> dict:
@@ -86,7 +96,14 @@ async def list_organizations(
 ) -> dict:
     summaries = await tenancy_api.platform_list_organizations(session)
     return success(
-        [_organization(o, await _chatbots_used(session, organization_id=o.id)) for o in summaries]
+        [
+            _organization(
+                o,
+                await _chatbots_used(session, organization_id=o.id),
+                await _conversations_used(session, organization_id=o.id),
+            )
+            for o in summaries
+        ]
     )
 
 
@@ -98,20 +115,25 @@ async def update_subscription(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     fields_set = body.model_fields_set
-    ends_at_kwargs = {"ends_at": body.ends_at} if "ends_at" in fields_set else {}
+    unset_kwargs = {
+        field: getattr(body, field)
+        for field in ("ends_at", "seat_limit", "chatbot_limit", "conversation_limit")
+        if field in fields_set
+    }
     sub = await tenancy_api.set_subscription(
         session,
         organization_id=organization_id,
         plan=body.plan,
         status=body.status,
         starts_at=body.starts_at,
-        **ends_at_kwargs,
+        **unset_kwargs,
     )
     if sub is None:
         raise AppError(code="NOT_FOUND", message="Organization not found", status_code=404)
     summary = await tenancy_api.get_organization_summary(session, organization_id=organization_id)
     assert summary is not None
     chatbots_used = await _chatbots_used(session, organization_id=organization_id)
+    conversations_used = await _conversations_used(session, organization_id=organization_id)
 
     def _jsonable(value: object) -> object:
         return value.isoformat() if isinstance(value, date) else value
@@ -125,7 +147,7 @@ async def update_subscription(
         metadata={field: _jsonable(getattr(body, field)) for field in fields_set},
     )
     await session.commit()
-    return success(_organization(summary, chatbots_used))
+    return success(_organization(summary, chatbots_used, conversations_used))
 
 
 @router.get("/users")

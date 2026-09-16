@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -174,10 +174,25 @@ PLANS = ("free", "pro", "enterprise")
 SUBSCRIPTION_STATUSES = ("active", "suspended")
 
 PLAN_LIMITS: dict[str, dict[str, int | None]] = {
-    "free": {"seats": 5, "chatbots": 3},
-    "pro": {"seats": 25, "chatbots": 25},
-    "enterprise": {"seats": None, "chatbots": None},  # None = unlimited
+    "free": {"seats": 5, "chatbots": 3, "conversations": 200},
+    "pro": {"seats": 25, "chatbots": 25, "conversations": 5000},
+    "enterprise": {"seats": None, "chatbots": None, "conversations": None},  # None = unlimited
 }
+
+# The three limit keys, in the order every override/effective/overridden
+# dict below lists them.
+LIMIT_KEYS = ("seats", "chatbots", "conversations")
+
+
+def effective_limits(plan: str, overrides: dict[str, int | None]) -> dict[str, int | None]:
+    """Effective value per limit key: the override when set (not None), else
+    the plan default. `overrides` may be a partial mapping — a missing key
+    is treated the same as an unset (None) override."""
+    defaults = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    return {
+        key: overrides.get(key) if overrides.get(key) is not None else defaults[key]
+        for key in LIMIT_KEYS
+    }
 
 
 @dataclass(frozen=True)
@@ -187,10 +202,14 @@ class SubscriptionView:
     effective_status: str  # active | suspended | expired
     starts_at: date
     ends_at: date | None
-    seat_limit: int | None
+    seat_limit: int | None  # effective: override if set, else the plan default
     chatbot_limit: int | None
+    conversation_limit: int | None
     seats_used: int  # distinct active members across the org's live workspaces
+    limits_overridden: dict[str, bool]  # {"seats": ..., "chatbots": ..., "conversations": ...}
+    organization_id: uuid.UUID
     chatbots_used: int = 0  # live chatbots across the org's workspaces; filled in by the caller
+    conversations_used: int = 0  # conversations started this calendar month; filled in by the caller
 
 
 def effective_status(status: str, ends_at: date | None, today: date | None = None) -> str:
@@ -201,7 +220,12 @@ def effective_status(status: str, ends_at: date | None, today: date | None = Non
 
 
 def _subscription_view(organization, seats_used: int) -> SubscriptionView:
-    limits = PLAN_LIMITS.get(organization.plan, PLAN_LIMITS["free"])
+    overrides = {
+        "seats": organization.seat_limit,
+        "chatbots": organization.chatbot_limit,
+        "conversations": organization.conversation_limit,
+    }
+    limits = effective_limits(organization.plan, overrides)
     return SubscriptionView(
         plan=organization.plan,
         status=organization.subscription_status,
@@ -212,11 +236,16 @@ def _subscription_view(organization, seats_used: int) -> SubscriptionView:
         ends_at=organization.subscription_ends_at,
         seat_limit=limits["seats"],
         chatbot_limit=limits["chatbots"],
+        conversation_limit=limits["conversations"],
         seats_used=seats_used,
+        limits_overridden={key: overrides[key] is not None for key in LIMIT_KEYS},
+        organization_id=organization.id,
     )
 
 
-def subscription_dict(sub: SubscriptionView, *, chatbots_used: int | None = None) -> dict:
+def subscription_dict(
+    sub: SubscriptionView, *, chatbots_used: int | None = None, conversations_used: int | None = None
+) -> dict:
     return {
         "plan": sub.plan,
         "status": sub.status,
@@ -225,9 +254,19 @@ def subscription_dict(sub: SubscriptionView, *, chatbots_used: int | None = None
         "ends_at": sub.ends_at.isoformat() if sub.ends_at is not None else None,
         "seat_limit": sub.seat_limit,
         "chatbot_limit": sub.chatbot_limit,
+        "conversation_limit": sub.conversation_limit,
         "seats_used": sub.seats_used,
         "chatbots_used": sub.chatbots_used if chatbots_used is None else chatbots_used,
+        "conversations_used": sub.conversations_used if conversations_used is None else conversations_used,
+        "limits_overridden": dict(sub.limits_overridden),
     }
+
+
+def current_month_start(now: datetime | None = None) -> datetime:
+    """First day of the current calendar month, 00:00 UTC — the rolling
+    window for the monthly conversation limit and its usage counts."""
+    moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    return moment.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
 async def get_subscription(
@@ -276,11 +315,16 @@ async def set_subscription(
     status: str | None = None,
     starts_at: date | None = None,
     ends_at: date | None = _UNSET,  # type: ignore[assignment]
+    seat_limit: int | None = _UNSET,  # type: ignore[assignment]
+    chatbot_limit: int | None = _UNSET,  # type: ignore[assignment]
+    conversation_limit: int | None = _UNSET,  # type: ignore[assignment]
 ) -> SubscriptionView | None:
-    """`ends_at` defaults to a private sentinel (not exposed to callers) so
-    "leave the expiry unchanged" and "clear it" (pass `ends_at=None`) are
-    distinguishable — the router only passes `ends_at` at all when the
-    caller's request body explicitly set that key."""
+    """`ends_at`, `seat_limit`, `chatbot_limit` and `conversation_limit` each
+    default to a private sentinel (not exposed to callers) so "leave
+    unchanged" (the kwarg omitted) and "clear it / go back to the plan
+    default" (pass the kwarg as `None`) are distinguishable — the router
+    only passes one of these at all when the caller's request body
+    explicitly set that key."""
     organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
     if organization is None:
         return None
@@ -294,6 +338,15 @@ async def set_subscription(
             message=f"status must be one of {', '.join(SUBSCRIPTION_STATUSES)}",
             status_code=400,
         )
+    for value, label in (
+        (seat_limit, "seat_limit"),
+        (chatbot_limit, "chatbot_limit"),
+        (conversation_limit, "conversation_limit"),
+    ):
+        if value is not _UNSET and value is not None and value < 0:
+            raise AppError(
+                code="INVALID_SUBSCRIPTION", message=f"{label} must be >= 0", status_code=400
+            )
     new_starts_at = starts_at if starts_at is not None else organization.subscription_starts_at
     new_ends_at = organization.subscription_ends_at if ends_at is _UNSET else ends_at
     if new_ends_at is not None and new_ends_at < new_starts_at:
@@ -308,6 +361,12 @@ async def set_subscription(
         organization.subscription_starts_at = starts_at
     if ends_at is not _UNSET:
         organization.subscription_ends_at = ends_at
+    if seat_limit is not _UNSET:
+        organization.seat_limit = seat_limit
+    if chatbot_limit is not _UNSET:
+        organization.chatbot_limit = chatbot_limit
+    if conversation_limit is not _UNSET:
+        organization.conversation_limit = conversation_limit
     await session.flush()
     seats_used = await repository.count_org_seats(session, organization_id=organization_id)
     return _subscription_view(organization, seats_used)

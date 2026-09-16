@@ -89,6 +89,30 @@ async def counts_by_chatbot(
     return [(chatbot_id, count) for chatbot_id, count in rows]
 
 
+async def count_started_since_for_workspaces(
+    session: AsyncSession, *, workspace_ids: list[uuid.UUID], since: datetime
+) -> int:
+    """Conversations started (created_at >= since) across the given
+    workspaces — used to enforce the organisation's monthly conversation
+    plan limit, and to report usage in the admin/owner subscription views.
+    """
+    if not workspace_ids:
+        return 0
+    return int(
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(Conversation)
+                .where(
+                    Conversation.workspace_id.in_(workspace_ids),
+                    Conversation.created_at >= since,
+                    Conversation.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one()
+    )
+
+
 async def platform_count(session: AsyncSession) -> int:
     """Superadmin only: conversations across every workspace."""
     return int(

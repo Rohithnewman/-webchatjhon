@@ -15,6 +15,7 @@ from app.shared.context import WorkspaceContext
 from app.slices.audit import api as audit_api
 from app.slices.authz import api as authz_api
 from app.slices.chatbots import api as chatbots_api
+from app.slices.conversations import api as conversations_api
 from app.slices.conversations import engine, repository
 from app.slices.tenancy import api as tenancy_api
 from app.slices.conversations.models import Conversation, ConversationMessage
@@ -108,6 +109,33 @@ async def _require_active_subscription(session: AsyncSession, *, workspace_id: u
         )
 
 
+async def _require_conversation_capacity(session: AsyncSession, *, workspace_id: uuid.UUID) -> None:
+    """D2: the monthly conversation cap, enforced only at widget start (not
+    on every profile fetch or message). One subscription read (the
+    workspace-joined-to-organization query, which also yields the
+    effective, already-overridden `conversation_limit`) plus, only when a
+    limit is actually set, one count of conversations started since the
+    first day of the current calendar month (UTC) across the organisation's
+    live workspaces."""
+    sub = await tenancy_api.get_subscription_for_workspace(session, workspace_id=workspace_id)
+    if sub is None or sub.conversation_limit is None:
+        return
+    workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=sub.organization_id)
+    since = tenancy_api.current_month_start()
+    conversations_used = await conversations_api.count_started_since_for_workspaces(
+        session, workspace_ids=workspace_ids, since=since
+    )
+    if conversations_used >= sub.conversation_limit:
+        raise AppError(
+            code="PLAN_LIMIT",
+            message=(
+                f"The {sub.plan} plan allows {sub.conversation_limit} conversations per month; "
+                "the limit is reached"
+            ),
+            status_code=403,
+        )
+
+
 def _recent_history(
     messages: list[ConversationMessage], limit: int = 10
 ) -> list[dict[str, str]]:
@@ -197,6 +225,7 @@ async def start_conversation(
             status_code=404,
         )
     await _require_active_subscription(session, workspace_id=chatbot.workspace_id)
+    await _require_conversation_capacity(session, workspace_id=chatbot.workspace_id)
     flow = await chatbots_api.get_current_flow(
         session, workspace_id=chatbot.workspace_id, chatbot_id=chatbot.id
     )

@@ -18,6 +18,7 @@ from app.shared.context import WorkspaceContext
 from app.slices.audit import api as audit_api
 from app.slices.authz import api as authz_api
 from app.slices.chatbots import api as chatbots_api
+from app.slices.conversations import api as conversations_api
 from app.slices.organizations.schemas import NameUpdate, WorkspaceCreate
 from app.slices.tenancy import api as tenancy_api
 
@@ -49,10 +50,14 @@ async def _profile(session: AsyncSession, ctx: WorkspaceContext, organization: t
     sub = await tenancy_api.get_subscription(session, organization_id=organization.id)
     subscription = None
     if sub is not None:
-        chatbots_used = await chatbots_api.count_for_workspaces(
-            session, workspace_ids=[w.id for w in workspaces]
+        workspace_ids = [w.id for w in workspaces]
+        chatbots_used = await chatbots_api.count_for_workspaces(session, workspace_ids=workspace_ids)
+        conversations_used = await conversations_api.count_started_since_for_workspaces(
+            session, workspace_ids=workspace_ids, since=tenancy_api.current_month_start()
         )
-        subscription = tenancy_api.subscription_dict(sub, chatbots_used=chatbots_used)
+        subscription = tenancy_api.subscription_dict(
+            sub, chatbots_used=chatbots_used, conversations_used=conversations_used
+        )
     return {
         "id": str(organization.id),
         "name": organization.name,

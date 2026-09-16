@@ -8,6 +8,7 @@ from app.core.errors import AppError
 from app.core.rate_limit import rate_limit
 from app.shared.context import Principal
 from app.slices.chatbots import api as chatbots_api
+from app.slices.conversations import api as conversations_api
 from app.slices.identity import repository
 from app.slices.identity.dependencies import get_current_principal
 from app.slices.identity.schemas import (
@@ -151,7 +152,12 @@ async def me(
             else []
         )
         chatbots_used = await chatbots_api.count_for_workspaces(session, workspace_ids=workspace_ids)
-        subscription = tenancy_api.subscription_dict(sub, chatbots_used=chatbots_used)
+        conversations_used = await conversations_api.count_started_since_for_workspaces(
+            session, workspace_ids=workspace_ids, since=tenancy_api.current_month_start()
+        )
+        subscription = tenancy_api.subscription_dict(
+            sub, chatbots_used=chatbots_used, conversations_used=conversations_used
+        )
     return success(
         {
             "user_id": str(user.id),

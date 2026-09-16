@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Index, String, text
+from sqlalchemy import Date, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +24,11 @@ class Organization(TimestampMixin, Base):
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
     subscription_ends_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # D2: overrides of the plan default, set by the superadmin. NULL = use
+    # the plan default (see tenancy.api.PLAN_LIMITS / effective_limits).
+    seat_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chatbot_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    conversation_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Workspace(TimestampMixin, Base):
