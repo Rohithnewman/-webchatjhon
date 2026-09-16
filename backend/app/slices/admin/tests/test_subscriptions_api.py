@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy import text
 
 from app.slices.identity import api as identity_api
+from app.slices.tenancy import api as tenancy_api
 
 SUBSCRIPTION_KEYS = {
     "plan",
@@ -267,6 +268,31 @@ async def test_suspending_one_organization_does_not_lock_another(client, session
 
     still_fine = await client.get("/api/v1/chatbots", headers=_headers(owner_b))
     assert still_fine.status_code == 200
+
+
+async def test_status_only_helper_reports_expired_and_unknown_workspace(client, session):
+    owner = await _register(client, "owner@statushelper.test", "StatusHelper")
+    workspace_id = uuid.UUID(owner["workspace_id"])
+
+    active = await tenancy_api.get_subscription_status_for_workspace(session, workspace_id=workspace_id)
+    assert active == "active"
+
+    root = await _superadmin(client, session)
+    org_id = await _org_id(client, _headers(root), "StatusHelper")
+    starts = (date.today() - timedelta(days=60)).isoformat()
+    past = (date.today() - timedelta(days=1)).isoformat()
+    patched = await client.patch(
+        f"/api/v1/admin/organizations/{org_id}",
+        json={"starts_at": starts, "ends_at": past},
+        headers=_headers(root),
+    )
+    assert patched.status_code == 200, patched.text
+
+    expired = await tenancy_api.get_subscription_status_for_workspace(session, workspace_id=workspace_id)
+    assert expired == "expired"
+
+    missing = await tenancy_api.get_subscription_status_for_workspace(session, workspace_id=uuid.uuid4())
+    assert missing is None
 
 
 async def test_plan_literal_validation_still_returns_400(client, session):

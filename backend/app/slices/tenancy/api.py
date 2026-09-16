@@ -242,6 +242,20 @@ async def get_subscription_for_workspace(
     return _subscription_view(organization, seats_used)
 
 
+async def get_subscription_status_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> str | None:
+    """`effective_status` only, via a single workspace-joined-to-organization
+    query with no membership/seat counting — for the request guard
+    (`authz.get_workspace_context`) and the widget lock check, which run on
+    nearly every request and only ever need this one field."""
+    row = await repository.select_subscription_status_for_workspace(session, workspace_id=workspace_id)
+    if row is None:
+        return None
+    status, ends_at = row
+    return effective_status(status, ends_at)
+
+
 _UNSET = object()
 
 

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -217,6 +217,21 @@ async def select_workspace(
     if for_update:
         statement = statement.with_for_update()
     return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def select_subscription_status_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> tuple[str, date | None] | None:
+    """Just the two columns `effective_status` needs — no membership/seat
+    joins. Used on the request guard, which runs on nearly every request."""
+    statement = (
+        select(Organization.subscription_status, Organization.subscription_ends_at)
+        .select_from(Workspace)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .where(Workspace.id == workspace_id, Workspace.deleted_at.is_(None))
+    )
+    row = (await session.execute(statement)).first()
+    return (row[0], row[1]) if row else None
 
 
 async def count_org_seats(session: AsyncSession, *, organization_id: uuid.UUID) -> int:

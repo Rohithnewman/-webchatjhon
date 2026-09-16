@@ -31,11 +31,13 @@ async def get_workspace_context(
             message="No active membership for this workspace",
             status_code=403,
         )
-    sub = await tenancy_api.get_subscription_for_workspace(session, workspace_id=principal.workspace_id)
-    if sub is not None and sub.effective_status != "active":
+    status = await tenancy_api.get_subscription_status_for_workspace(
+        session, workspace_id=principal.workspace_id
+    )
+    if status is not None and status != "active":
         raise AppError(
             code="SUBSCRIPTION_LOCKED",
-            message=f"This organisation's subscription is {sub.effective_status}. Contact the platform administrator.",
+            message=f"This organisation's subscription is {status}. Contact the platform administrator.",
             status_code=403,
         )
     return WorkspaceContext(
