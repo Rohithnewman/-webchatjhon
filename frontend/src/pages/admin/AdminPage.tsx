@@ -99,7 +99,7 @@ function Organizations() {
           </thead>
           <tbody>
             {orgs.data.map((org) => (
-              <OrganizationRow key={org.id} org={org} onPatch={(patch) => update.mutate({ id: org.id, patch })} pending={update.isPending} />
+              <OrganizationRow key={org.id} org={org} onPatch={(patch) => update.mutateAsync({ id: org.id, patch })} pending={update.isPending} />
             ))}
           </tbody>
         </table>
@@ -114,20 +114,24 @@ function OrganizationRow({
   pending,
 }: {
   org: AdminOrganization;
-  onPatch: (patch: SubscriptionPatch) => void;
+  onPatch: (patch: SubscriptionPatch) => Promise<AdminOrganization>;
   pending: boolean;
 }) {
   const sub = org.subscription;
+  // Fire-and-forget uses of onPatch (everything but the limit inputs, which need the
+  // rejection to revert their own draft) swallow the rejection here — the mutation's own
+  // onError already raised the toast, so there is nothing left to report at this call site.
+  const fireAndForget = (patch: SubscriptionPatch) => { onPatch(patch).catch(() => {}); };
   return (
     <tr>
       <td>{org.name}</td>
       <td>
-        <Select value={sub.plan} disabled={pending} onChange={(e) => onPatch({ plan: e.target.value as Plan })} aria-label={`Plan for ${org.name}`}>
+        <Select value={sub.plan} disabled={pending} onChange={(e) => fireAndForget({ plan: e.target.value as Plan })} aria-label={`Plan for ${org.name}`}>
           {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
         </Select>
       </td>
       <td>
-        <Select value={sub.status} disabled={pending} onChange={(e) => onPatch({ status: e.target.value as SubscriptionStatus })} aria-label={`Status for ${org.name}`}>
+        <Select value={sub.status} disabled={pending} onChange={(e) => fireAndForget({ status: e.target.value as SubscriptionStatus })} aria-label={`Status for ${org.name}`}>
           {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </Select>
       </td>
@@ -138,7 +142,7 @@ function OrganizationRow({
             className="subscription-date-input"
             value={sub.starts_at}
             disabled={pending}
-            onChange={(e) => e.target.value && onPatch({ starts_at: e.target.value })}
+            onChange={(e) => e.target.value && fireAndForget({ starts_at: e.target.value })}
             aria-label={`Start date for ${org.name}`}
           />
           <span aria-hidden>→</span>
@@ -147,11 +151,11 @@ function OrganizationRow({
             className="subscription-date-input"
             value={sub.ends_at ?? ""}
             disabled={pending}
-            onChange={(e) => onPatch({ ends_at: e.target.value || null })}
+            onChange={(e) => fireAndForget({ ends_at: e.target.value || null })}
             aria-label={`End date for ${org.name}`}
           />
           {sub.ends_at ? (
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => onPatch({ ends_at: null })}>
+            <Button size="sm" variant="ghost" disabled={pending} onClick={() => fireAndForget({ ends_at: null })}>
               Clear
             </Button>
           ) : null}
@@ -207,24 +211,35 @@ function LimitInput({
   value: number | null;
   overridden: boolean;
   pending: boolean;
-  onCommit: (value: number | null) => void;
+  onCommit: (value: number | null) => Promise<unknown>;
 }) {
   const initial = overridden && value !== null ? String(value) : "";
   const [draft, setDraft] = useState(initial);
 
   useEffect(() => setDraft(initial), [initial]);
 
+  // Reverts the draft to the last-known-good value when the PATCH is rejected — the mutation's
+  // own onError already raised the toast, this just keeps the input from showing a value the
+  // server never accepted.
+  const send = async (v: number | null) => {
+    try {
+      await onCommit(v);
+    } catch {
+      setDraft(initial);
+    }
+  };
+
   const commit = () => {
     const trimmed = draft.trim();
     if (trimmed === "") {
-      if (overridden) onCommit(null);
+      if (overridden) void send(null);
       else setDraft("");
       return;
     }
     const n = Number(trimmed);
     if (!Number.isInteger(n) || n < 0) { setDraft(initial); return; }
     if (overridden && n === value) return;
-    onCommit(n);
+    void send(n);
   };
 
   return (
@@ -242,7 +257,17 @@ function LimitInput({
         aria-label={label}
       />
       {overridden && (
-        <Button size="sm" variant="ghost" className="limit-default-btn" disabled={pending} onClick={() => onCommit(null)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="limit-default-btn"
+          disabled={pending}
+          // Keep focus on the input through the click so it never blurs — otherwise the
+          // mousedown-triggered blur commits the (possibly just-typed) draft first, then the
+          // click sends null, firing two PATCH requests.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => { setDraft(""); void send(null); }}
+        >
           default
         </Button>
       )}
