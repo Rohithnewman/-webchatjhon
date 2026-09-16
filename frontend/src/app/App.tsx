@@ -32,11 +32,13 @@ function HomeRedirect() {
 /** Wraps every tenant-facing route element (everything except /admin, /login
  *  and /register). Superadmins carry no tenancy, so any tenant route they
  *  land on — directly, via a stale link, or via browser back — bounces them
- *  to /admin instead of rendering. Non-superadmins, and anyone whose `me` is
- *  still loading, see the route as normal. */
+ *  to /admin instead of rendering. While `/auth/me` is still resolving it
+ *  renders a loading state rather than the real page, so a superadmin never
+ *  mounts tenant-only queries (which 403) before being redirected. */
 function SuperadminOnly({ children }: { children: ReactNode }) {
   const { me, isReady } = useMe();
-  if (isReady && me?.is_superadmin) return <Navigate to="/admin" replace />;
+  if (!isReady) return <LoadingState label="Opening workspace..." />;
+  if (me?.is_superadmin) return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 
