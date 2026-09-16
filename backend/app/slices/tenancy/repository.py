@@ -247,6 +247,23 @@ async def select_subscription_status_for_workspace(
     return (row[0], row[1]) if row else None
 
 
+async def select_conversation_cap_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> tuple[uuid.UUID, str, int | None] | None:
+    """Just the columns the monthly conversation cap check needs — the
+    organisation id (to list its workspaces), plan, and raw
+    `conversation_limit` override — via one workspace-joined-to-organization
+    query, no seat counting. Used on the widget's public start path."""
+    statement = (
+        select(Organization.id, Organization.plan, Organization.conversation_limit)
+        .select_from(Workspace)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .where(Workspace.id == workspace_id, Workspace.deleted_at.is_(None))
+    )
+    row = (await session.execute(statement)).first()
+    return (row[0], row[1], row[2]) if row else None
+
+
 async def count_org_seats(session: AsyncSession, *, organization_id: uuid.UUID) -> int:
     statement = (
         select(func.count(func.distinct(Membership.user_id)))

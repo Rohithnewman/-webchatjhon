@@ -127,6 +127,7 @@ async def test_negative_limit_override_is_rejected(client, session):
         headers=_headers(root),
     )
     assert response.status_code == 400
+    assert response.json()["error"] == "VALIDATION_ERROR"
 
 
 async def test_overridden_seat_and_chatbot_limits_are_enforced(client, session):
@@ -240,3 +241,47 @@ async def test_admin_organizations_reports_conversations_used(client, session):
     row = await _org_row(client, _headers(root), "Usage")
     assert row["subscription"]["conversations_used"] == 2
     assert row["subscription"]["conversation_limit"] == 200  # free plan default
+
+
+async def test_auth_me_reports_conversation_limit_fields(client, session):
+    root = await _superadmin(client, session)
+    owner = await _register(client, "owner@me-limits.test", "MeLimits")
+    chatbot_id = await _published_chatbot(client, _headers(owner))
+    org_id = await _org_id(client, _headers(root), "MeLimits")
+
+    overridden = await client.patch(
+        f"/api/v1/admin/organizations/{org_id}", json={"conversation_limit": 7}, headers=_headers(root)
+    )
+    assert overridden.status_code == 200, overridden.text
+
+    started = await client.post("/api/v1/widget/conversations", json={"chatbot_id": chatbot_id})
+    assert started.status_code == 201, started.text
+
+    me = await client.get("/api/v1/auth/me", headers=_headers(owner))
+    assert me.status_code == 200, me.text
+    sub = me.json()["data"]["subscription"]
+    assert sub["conversation_limit"] == 7
+    assert sub["limits_overridden"]["conversations"] is True
+    assert sub["conversations_used"] == 1
+
+
+async def test_organization_profile_reports_conversation_limit_fields(client, session):
+    root = await _superadmin(client, session)
+    owner = await _register(client, "owner@org-limits.test", "OrgLimits")
+    chatbot_id = await _published_chatbot(client, _headers(owner))
+    org_id = await _org_id(client, _headers(root), "OrgLimits")
+
+    overridden = await client.patch(
+        f"/api/v1/admin/organizations/{org_id}", json={"conversation_limit": 9}, headers=_headers(root)
+    )
+    assert overridden.status_code == 200, overridden.text
+
+    started = await client.post("/api/v1/widget/conversations", json={"chatbot_id": chatbot_id})
+    assert started.status_code == 201, started.text
+
+    organization = await client.get("/api/v1/organization", headers=_headers(owner))
+    assert organization.status_code == 200, organization.text
+    sub = organization.json()["data"]["subscription"]
+    assert sub["conversation_limit"] == 9
+    assert sub["limits_overridden"]["conversations"] is True
+    assert sub["conversations_used"] == 1

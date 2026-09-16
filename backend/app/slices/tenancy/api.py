@@ -207,7 +207,6 @@ class SubscriptionView:
     conversation_limit: int | None
     seats_used: int  # distinct active members across the org's live workspaces
     limits_overridden: dict[str, bool]  # {"seats": ..., "chatbots": ..., "conversations": ...}
-    organization_id: uuid.UUID
     chatbots_used: int = 0  # live chatbots across the org's workspaces; filled in by the caller
     conversations_used: int = 0  # conversations started this calendar month; filled in by the caller
 
@@ -239,7 +238,6 @@ def _subscription_view(organization, seats_used: int) -> SubscriptionView:
         conversation_limit=limits["conversations"],
         seats_used=seats_used,
         limits_overridden={key: overrides[key] is not None for key in LIMIT_KEYS},
-        organization_id=organization.id,
     )
 
 
@@ -302,6 +300,21 @@ async def get_subscription_status_for_workspace(
         return None
     status, ends_at = row
     return effective_status(status, ends_at)
+
+
+async def get_conversation_cap_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> tuple[uuid.UUID, str, int | None] | None:
+    """`(organization_id, plan, effective conversation_limit)` — via a
+    single workspace-joined-to-organization query with no seat counting —
+    for the monthly conversation cap check on the widget's public start
+    path, which only ever needs these three values."""
+    row = await repository.select_conversation_cap_for_workspace(session, workspace_id=workspace_id)
+    if row is None:
+        return None
+    organization_id, plan, conversation_limit = row
+    limit = effective_limits(plan, {"conversations": conversation_limit})["conversations"]
+    return organization_id, plan, limit
 
 
 _UNSET = object()

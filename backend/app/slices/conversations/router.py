@@ -111,25 +111,29 @@ async def _require_active_subscription(session: AsyncSession, *, workspace_id: u
 
 async def _require_conversation_capacity(session: AsyncSession, *, workspace_id: uuid.UUID) -> None:
     """D2: the monthly conversation cap, enforced only at widget start (not
-    on every profile fetch or message). One subscription read (the
-    workspace-joined-to-organization query, which also yields the
-    effective, already-overridden `conversation_limit`) plus, only when a
-    limit is actually set, one count of conversations started since the
-    first day of the current calendar month (UTC) across the organisation's
-    live workspaces."""
-    sub = await tenancy_api.get_subscription_for_workspace(session, workspace_id=workspace_id)
-    if sub is None or sub.conversation_limit is None:
+    on every profile fetch or message). One lean subscription read (a
+    single workspace-joined-to-organization query, no seat counting — see
+    `tenancy_api.get_conversation_cap_for_workspace`) plus, only when a
+    limit is actually set, one workspace-id listing and one count of
+    conversations started since the first day of the current calendar
+    month (UTC) across the organisation's live workspaces: at most three
+    queries when a cap exists, one when the plan is unlimited."""
+    cap = await tenancy_api.get_conversation_cap_for_workspace(session, workspace_id=workspace_id)
+    if cap is None:
         return
-    workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=sub.organization_id)
+    organization_id, plan, conversation_limit = cap
+    if conversation_limit is None:
+        return
+    workspace_ids = await tenancy_api.list_org_workspace_ids(session, organization_id=organization_id)
     since = tenancy_api.current_month_start()
     conversations_used = await conversations_api.count_started_since_for_workspaces(
         session, workspace_ids=workspace_ids, since=since
     )
-    if conversations_used >= sub.conversation_limit:
+    if conversations_used >= conversation_limit:
         raise AppError(
             code="PLAN_LIMIT",
             message=(
-                f"The {sub.plan} plan allows {sub.conversation_limit} conversations per month; "
+                f"The {plan} plan allows {conversation_limit} conversations per month; "
                 "the limit is reached"
             ),
             status_code=403,
