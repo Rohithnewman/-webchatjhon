@@ -21,6 +21,7 @@
     API = script.src.replace(/\/widget\.js.*$/, "") + "/api/v1";
   }
   var ACCENT = script.getAttribute("data-accent") || "#4f46e5";
+  var MODE = script.getAttribute("data-mode") === "fullpage" ? "fullpage" : "bubble";
 
   var state = {
     open: false,
@@ -38,6 +39,9 @@
     ".wcb-bubble{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:" + ACCENT + ";color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}" +
     ".wcb-panel{position:absolute;bottom:72px;right:0;width:340px;max-width:calc(100vw - 40px);height:480px;max-height:calc(100vh - 120px);background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden}" +
     ".wcb-panel.wcb-open{display:flex}" +
+    (MODE === "fullpage"
+      ? ".wcb-root{inset:0;bottom:auto;right:auto}.wcb-panel{position:fixed;inset:0;width:auto;max-width:none;height:auto;max-height:none;border-radius:0;box-shadow:none}.wcb-bubble,.wcb-head button{display:none}"
+      : "") +
     ".wcb-head{background:" + ACCENT + ";color:#fff;padding:12px 16px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}" +
     ".wcb-head button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1}" +
     ".wcb-log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f7f7fb}" +
@@ -127,14 +131,16 @@
     head.insertBefore(avatarNode(design), head.firstChild);
     bubble.innerHTML = "";
     bubble.appendChild(design.selectedAvatar === "custom" && design.customAvatarUrl ? avatarNode(design) : document.createTextNode("💬"));
-    if (design.positionWeb === "left") {
-      root.style.right = "auto"; root.style.left = "20px"; panel.style.right = "auto"; panel.style.left = "0";
-    } else if (design.positionWeb === "center") {
-      root.style.right = "auto"; root.style.left = "50%"; root.style.transform = "translateX(-50%)";
-      panel.style.right = "auto"; panel.style.left = "50%"; panel.style.transform = "translateX(-50%)";
+    if (MODE !== "fullpage") {
+      if (design.positionWeb === "left") {
+        root.style.right = "auto"; root.style.left = "20px"; panel.style.right = "auto"; panel.style.left = "0";
+      } else if (design.positionWeb === "center") {
+        root.style.right = "auto"; root.style.left = "50%"; root.style.transform = "translateX(-50%)";
+        panel.style.right = "auto"; panel.style.left = "50%"; panel.style.transform = "translateX(-50%)";
+      }
+      var size = design.windowSize === "Custom" ? [design.customWidth || 360, design.customHeight || 520] : SIZES[design.windowSize];
+      if (size) { panel.style.width = size[0] + "px"; panel.style.height = size[1] + "px"; }
     }
-    var size = design.windowSize === "Custom" ? [design.customWidth || 360, design.customHeight || 520] : SIZES[design.windowSize];
-    if (size) { panel.style.width = size[0] + "px"; panel.style.height = size[1] + "px"; }
     panel.style.resize = design.enableResize ? "both" : "none";
     panel.style.overflow = design.enableResize ? "auto" : "hidden";
     showTeaser(design.followUpQuestion);
@@ -360,6 +366,12 @@
   });
 
   loadProfile();
+
+  if (MODE === "fullpage") {
+    state.open = true;
+    panel.classList.add("wcb-open");
+    start();
+  }
 
   window.WebChatBots = { open: function () { root.querySelector(".wcb-bubble").click(); } };
 })();

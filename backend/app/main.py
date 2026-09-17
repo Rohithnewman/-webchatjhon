@@ -22,6 +22,7 @@ from app.slices.knowledge.router import router as knowledge_router
 
 _WIDGET_JS = Path(__file__).resolve().parent / "static" / "widget.js"
 _DEMO_HTML = Path(__file__).resolve().parent / "static" / "demo.html"
+_CHAT_HTML = Path(__file__).resolve().parent / "static" / "chat.html"
 
 
 def create_app() -> FastAPI:
@@ -68,6 +69,18 @@ def create_app() -> FastAPI:
         page = (
             _DEMO_HTML.read_text(encoding="utf-8")
             .replace("__CHATBOT_ID__", html.escape(chatbot_id) or "(missing — add ?chatbot_id=…)")
+            .replace("__ROOT__", root)
+            .replace("__API__", f"{root}/api/v1")
+        )
+        return HTMLResponse(page)
+
+    @app.get("/chat/{chatbot_id}", include_in_schema=False)
+    async def chat_page(request: Request, chatbot_id: str) -> HTMLResponse:
+        """Public full-page chat for the 'Put chatbot to your entire page' install format."""
+        root = html.escape(str(request.base_url).rstrip("/"))
+        page = (
+            _CHAT_HTML.read_text(encoding="utf-8")
+            .replace("__CHATBOT_ID__", html.escape(chatbot_id))
             .replace("__ROOT__", root)
             .replace("__API__", f"{root}/api/v1")
         )
