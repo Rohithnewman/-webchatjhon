@@ -118,6 +118,46 @@ async def test_role_crud(client):
     assert "Support" not in {r["name"] for r in listed_after.json()["data"]}
 
 
+async def test_duplicate_role_name_is_rejected(client):
+    owner = await _register(client, "dupname@roles.test", "DupNameOrg")
+    first = await client.post(
+        ROLES_URL, json={"name": "Agent", "permissions": ["inbox:reply"]}, headers=_headers(owner)
+    )
+    assert first.status_code == 201, first.text
+
+    second = await client.post(
+        ROLES_URL, json={"name": "Agent", "permissions": ["analytics:read"]}, headers=_headers(owner)
+    )
+    assert second.status_code == 409
+    assert second.json()["error"] == "ROLE_NAME_TAKEN"
+
+
+async def test_patch_round_trips_the_get_response(client):
+    """The roles editor seeds its edit form from GET's `permissions` (which
+    already includes the server-added `features:read`) and PATCHes that
+    array straight back unchanged apart from a new name. That must not be
+    rejected as an unknown permission."""
+    owner = await _register(client, "roundtrip@roles.test", "RoundTripOrg")
+    created = await client.post(
+        ROLES_URL, json={"name": "Agent", "permissions": ["inbox:reply"]}, headers=_headers(owner)
+    )
+    assert created.status_code == 201, created.text
+    role_id = created.json()["data"]["id"]
+
+    fetched = await client.get(ROLES_URL, headers=_headers(owner))
+    role = next(r for r in fetched.json()["data"] if r["id"] == role_id)
+    assert "features:read" in role["permissions"]
+
+    patched = await client.patch(
+        f"{ROLES_URL}/{role_id}",
+        json={"name": "Agent renamed", "permissions": role["permissions"]},
+        headers=_headers(owner),
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["data"]["name"] == "Agent renamed"
+    assert set(patched.json()["data"]["permissions"]) == {"inbox:reply", "features:read"}
+
+
 async def test_roles_are_isolated_between_organizations(client):
     owner_a = await _register(client, "a@roles.test", "OrgA")
     owner_b = await _register(client, "b@roles.test", "OrgB")

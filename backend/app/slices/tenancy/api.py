@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
@@ -78,12 +79,20 @@ def _with_implied_read(permission_list: list[str]) -> list[str]:
 async def create_role(
     session: AsyncSession, *, organization_id: uuid.UUID, name: str, permissions: list[str]
 ) -> RoleView:
-    role = await repository.insert_role(
-        session,
-        organization_id=organization_id,
-        name=name,
-        permissions=_with_implied_read(permissions),
-    )
+    try:
+        role = await repository.insert_role(
+            session,
+            organization_id=organization_id,
+            name=name,
+            permissions=_with_implied_read(permissions),
+        )
+    except IntegrityError as exc:
+        await session.rollback()
+        raise AppError(
+            code="ROLE_NAME_TAKEN",
+            message=f"A role named '{name}' already exists in this organisation",
+            status_code=409,
+        ) from exc
     return _role_view(role)
 
 
@@ -106,7 +115,15 @@ async def update_role(
     if role.is_system:
         raise AppError(code="SYSTEM_ROLE", message="System roles cannot be changed", status_code=403)
     new_permissions = _with_implied_read(permissions) if permissions is not None else None
-    role = await repository.update_role(session, role=role, name=name, permissions=new_permissions)
+    try:
+        role = await repository.update_role(session, role=role, name=name, permissions=new_permissions)
+    except IntegrityError as exc:
+        await session.rollback()
+        raise AppError(
+            code="ROLE_NAME_TAKEN",
+            message=f"A role named '{name}' already exists in this organisation",
+            status_code=409,
+        ) from exc
     return _role_view(role)
 
 
@@ -116,9 +133,16 @@ async def delete_role(
     """Returns the deleted role's view, or None if it does not exist or
     belongs to a different organisation (404). Raises AppError for a system
     role (403 SYSTEM_ROLE) or a role still assigned to a member (409
-    ROLE_IN_USE)."""
+    ROLE_IN_USE).
+
+    The role row is locked FOR UPDATE before the membership count: Postgres
+    takes a matching key-share lock on it for every concurrent INSERT into
+    memberships that references it via the role_id foreign key, so this
+    blocks a concurrent add-member from landing between the count and the
+    delete. The delete is also wrapped so a FK violation that slips through
+    anyway (belt and suspenders) still comes back as ROLE_IN_USE, not 500."""
     role = await repository.select_role_for_organization(
-        session, organization_id=organization_id, role_id=role_id
+        session, organization_id=organization_id, role_id=role_id, for_update=True
     )
     if role is None:
         return None
@@ -132,7 +156,15 @@ async def delete_role(
             status_code=409,
         )
     view = _role_view(role)
-    await repository.delete_role(session, role=role)
+    try:
+        await repository.delete_role(session, role=role)
+    except IntegrityError as exc:
+        await session.rollback()
+        raise AppError(
+            code="ROLE_IN_USE",
+            message="This role is assigned to one or more members and cannot be deleted",
+            status_code=409,
+        ) from exc
     return view
 
 

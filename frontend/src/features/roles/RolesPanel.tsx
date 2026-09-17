@@ -11,6 +11,16 @@ function permissionsEqual(a: string[], b: string[]): boolean {
   return setA.size === setB.size && [...setA].every((p) => setB.has(p));
 }
 
+const CATALOGUE_IDS = new Set(PERMISSION_CATALOGUE.map((p) => p.id));
+
+/** A role's GET response includes the server-added `features:read` (D3: it
+ *  is implied for every role). Strip it — and anything else outside the
+ *  editable catalogue — before sending permissions back on create/update;
+ *  the server re-adds it itself. */
+function toCatalogueOnly(permissions: string[]): string[] {
+  return permissions.filter((p) => CATALOGUE_IDS.has(p));
+}
+
 function PermissionGrid({
   selected,
   disabled,
@@ -58,7 +68,7 @@ export function RolesPanel() {
   const fail = (err: unknown) => toast.error(err instanceof Error ? err.message : "Request failed");
 
   const create = useMutation({
-    mutationFn: () => workspaceApi.createRole({ name: newName.trim(), permissions: newPermissions }),
+    mutationFn: () => workspaceApi.createRole({ name: newName.trim(), permissions: toCatalogueOnly(newPermissions) }),
     onSuccess: () => {
       setNewName("");
       setNewPermissions([]);
@@ -148,7 +158,7 @@ function RoleRow({ role, onDelete, deleting }: { role: Role; onDelete: () => voi
   const dirty = name !== role.name || !permissionsEqual(permissions, role.permissions);
 
   const save = useMutation({
-    mutationFn: () => workspaceApi.updateRole(role.id, { name, permissions }),
+    mutationFn: () => workspaceApi.updateRole(role.id, { name, permissions: toCatalogueOnly(permissions) }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["roles"] });
       void client.invalidateQueries({ queryKey: ["members"] });

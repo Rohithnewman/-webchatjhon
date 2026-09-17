@@ -78,15 +78,18 @@ async def insert_role(
 
 
 async def select_role_for_organization(
-    session: AsyncSession, *, organization_id: uuid.UUID, role_id: uuid.UUID
+    session: AsyncSession, *, organization_id: uuid.UUID, role_id: uuid.UUID, for_update: bool = False
 ) -> Role | None:
     """A role visible to this organisation by id: its own roles, plus the
     system roles every organisation may use as templates. A role owned by a
-    different organisation is invisible — same as not found."""
+    different organisation is invisible — same as not found. `for_update`
+    locks the row (see tenancy.api.delete_role's delete/add-member race)."""
     statement = select(Role).where(
         Role.id == role_id,
         or_(Role.organization_id == organization_id, Role.organization_id.is_(None)),
     )
+    if for_update:
+        statement = statement.with_for_update()
     return (await session.execute(statement)).scalar_one_or_none()
 
 
