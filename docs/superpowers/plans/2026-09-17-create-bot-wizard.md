@@ -238,7 +238,7 @@ git commit -m "feat(chatbots): platform, purpose and installation fields"
 - Modify: `backend/app/slices/chatbots/service.py`, `router.py`, `backend/app/slices/audit/actions.py`
 
 **Interfaces:**
-- Consumes: Task 1 fields; `install.fetch_page` is the seam tests monkeypatch.
+- Consumes: Task 1 fields; `install.fetch_page` is the seam tests monkeypatch. Amended after review (2026-09-17): the allowed host comes from `settings.PUBLIC_BASE_URL` (new setting, default `http://127.0.0.1:8000`), never from the request's `Host` header; `check_url` is async and resolves through `loop.getaddrinfo`; `fetch_page` wraps all hops in `asyncio.timeout(TIMEOUT_SECONDS)`; the route carries `Depends(rate_limit("install_verify"))`; tests monkeypatch `settings.PUBLIC_BASE_URL = "http://test"`.
 - Produces: `POST /api/v1/chatbots/{id}/install/verify {url}` → `{connected: true, url, verified_at}` or `{connected: false, reason: "unreachable"|"script_missing"|"wrong_chatbot"}`; 400 `VALIDATION_ERROR` for a rejected URL.
 
 - [ ] **Step 1: Tests (RED)**

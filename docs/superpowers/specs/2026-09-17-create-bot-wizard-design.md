@@ -206,9 +206,13 @@ Downgrade drops the six columns and the three check constraints.
 1. Parse the URL: scheme must be http or https; host required.
 2. Resolve the host. Reject loopback, link-local, private and reserved
    addresses using the same guard the `http_request` node uses
-   (`conversations/services.py`), extended with one allow-list entry: the
-   host of the current request (`request.base_url`, the same origin `/demo`
-   renders itself with) is always allowed, so the built-in demo page verifies.
+   with one allow-list entry: the host of the `PUBLIC_BASE_URL` setting (the
+   backend's own public origin, default `http://127.0.0.1:8000`) is always
+   allowed, so the built-in demo page verifies. The allowed host is never
+   taken from the request, because the `Host` header is client-controlled.
+   Host resolution runs off the event loop (`loop.getaddrinfo`), IDNA/label
+   errors count as internal, the whole fetch (all hops) is bounded by one
+   `asyncio.timeout(5)`, and the endpoint carries the standard rate limit.
 3. Fetch with httpx: 5 s total timeout, at most 3 redirects (each redirect
    target re-checked with step 2), streaming read capped at 1 MB, `User-Agent:
    WebChatBots-Verifier`.
