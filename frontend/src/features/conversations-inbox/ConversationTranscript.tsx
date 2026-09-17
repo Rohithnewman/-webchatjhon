@@ -5,6 +5,7 @@ import type {
   ConversationDetail,
   ConversationMessage,
 } from "../../entities/conversation";
+import { permissionLabel } from "../../entities/workspace/api";
 import { Button, StatusDot } from "../../shared/ui";
 import { LiveAgentInput } from "./LiveAgentInput";
 import { MessageBody } from "./MessageBody";
@@ -153,7 +154,7 @@ export function ConversationTranscript({
 
       {readOnly ? (
         <div className="agent-input-bar is-closed">
-          <span>Only members can reply</span>
+          <span>Your role does not include {permissionLabel("inbox:reply")}</span>
         </div>
       ) : (
         <LiveAgentInput

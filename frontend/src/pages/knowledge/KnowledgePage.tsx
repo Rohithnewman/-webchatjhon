@@ -4,14 +4,15 @@ import { useState } from "react";
 
 import { knowledgeApi } from "../../entities/knowledge/api";
 import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
 import { Button, Field, Input, LoadingState, Panel, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 export function KnowledgePage() {
   const toast = useToast();
   const client = useQueryClient();
-  const { me, can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("knowledge:manage");
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -55,7 +56,7 @@ export function KnowledgePage() {
 
   return (
     <DashboardShell title="Knowledge Bases" subtitle="Upload documents (PDF, DOCX, TXT, MD, HTML). They are chunked and embedded in the background and searched by the Knowledge node.">
-      {readOnly && <ReadOnlyBanner role={me?.role} />}
+      {readOnly && <ReadOnlyBanner label={permissionLabel("knowledge:manage")} />}
       <div className="knowledge-grid">
             <div className="knowledge-sidebar">
               {!readOnly && (

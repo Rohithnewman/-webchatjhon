@@ -13,7 +13,7 @@ export function ConversationsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const { can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const readOnly = isReady && !can("inbox:reply");
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);

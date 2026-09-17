@@ -9,8 +9,11 @@ export function PrimaryNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const { me } = useMe();
+  const { me, can, isReady } = useMe();
   const path = location.pathname;
+  // Optimistic until we know for sure: shows the link while /auth/me is
+  // still loading, then hides it if the role turns out to lack the read.
+  const canSeeAnalytics = !isReady || can("analytics:read");
 
   const handleSignOut = async () => {
     await logout();
@@ -59,9 +62,11 @@ export function PrimaryNav() {
               <Link to="/knowledge" className={`primary-nav-btn ${path.startsWith("/knowledge") ? "is-active" : ""}`} title="Knowledge base">
                 <BookOpen size={20} /><span>Knowledge</span>
               </Link>
-              <Link to="/analytics" className={`primary-nav-btn ${path.startsWith("/analytics") ? "is-active" : ""}`} title="Analytics">
-                <BarChart3 size={20} /><span>Analytics</span>
-              </Link>
+              {canSeeAnalytics && (
+                <Link to="/analytics" className={`primary-nav-btn ${path.startsWith("/analytics") ? "is-active" : ""}`} title="Analytics">
+                  <BarChart3 size={20} /><span>Analytics</span>
+                </Link>
+              )}
               <Link to="/settings" className={`primary-nav-btn ${path.startsWith("/settings") ? "is-active" : ""}`} title="Settings">
                 <Settings size={20} /><span>Settings</span>
               </Link>

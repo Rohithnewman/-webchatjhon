@@ -10,7 +10,9 @@ export interface Me {
   full_name: string;
   is_superadmin: boolean;
   workspace_id: string | null;
-  role: "owner" | "admin" | "member" | "viewer" | null;
+  // A system role name ("owner" | "admin" | "member" | "viewer") or the
+  // name of an organisation-defined custom role.
+  role: string | null;
   permissions: string[];
   subscription: Subscription | null;
 }

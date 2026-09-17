@@ -21,6 +21,7 @@ import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
 import { useMe } from "../../entities/me/api";
 import { useAuthStore } from "../../entities/session/auth-store";
+import { permissionLabel } from "../../entities/workspace/api";
 import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { ClassicBuilder } from "../../features/classic-builder/ClassicBuilder";
 import {
@@ -48,8 +49,8 @@ function BuilderWorkspace() {
   const toast = useToast();
   const logout = useAuthStore((state) => state.logout);
   const graph = useFlowGraph();
-  const { me, can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
 
   // Mode: "classic" or "visual"
   const [builderMode, setBuilderMode] = useState<"classic" | "visual">("classic");
@@ -190,7 +191,7 @@ function BuilderWorkspace() {
       />
 
       <main className="ambot-main-viewport">
-        {readOnly && <ReadOnlyBanner role={me?.role} />}
+        {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
         {builderMode === "classic" ? (
           // ── CLASSIC BUILDER (3-Column View) ──────────────────────────────────
           <ClassicBuilder

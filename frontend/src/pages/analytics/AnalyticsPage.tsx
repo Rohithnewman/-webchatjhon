@@ -3,21 +3,34 @@ import { BarChart3 } from "lucide-react";
 import { useState } from "react";
 
 import { analyticsApi } from "../../entities/analytics/api";
-import { EmptyState, LoadingState, Panel, Select } from "../../shared/ui";
+import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
+import { EmptyState, LoadingState, Panel, ReadOnlyBanner, Select } from "../../shared/ui";
 import { DashboardShell } from "../../widgets/navigation/DashboardShell";
 
 const WINDOWS = [7, 30, 90] as const;
 
 export function AnalyticsPage() {
   const [days, setDays] = useState<number>(30);
+  const { can, isReady } = useMe();
+  const canRead = !isReady || can("analytics:read");
   const overview = useQuery({
     queryKey: ["analytics", days],
     queryFn: () => analyticsApi.overview(days),
     refetchInterval: 10_000,
+    enabled: canRead,
   });
 
   const data = overview.data;
   const peak = Math.max(1, ...(data?.daily.map((d) => d.conversations) ?? [1]));
+
+  if (isReady && !canRead) {
+    return (
+      <DashboardShell title="Analytics" subtitle="Conversation volume across every chatbot in this workspace.">
+        <ReadOnlyBanner label={permissionLabel("analytics:read")} />
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell

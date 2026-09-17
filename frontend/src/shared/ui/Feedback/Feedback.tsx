@@ -12,12 +12,13 @@ export function Spinner({ size = 18 }: { size?: number }) {
   return <Loader2 size={size} className={styles.spinner} aria-hidden />;
 }
 
-/** Shown to viewers (and anyone else without `features:use`) so they know why
- *  save/upload/reply controls are missing before they go looking for them. */
-export function ReadOnlyBanner({ role }: { role: string | null | undefined }) {
+/** Shown to anyone missing the permission a control needs, so they know why
+ *  save/upload/reply controls are missing before they go looking for them.
+ *  `label` is the human label from PERMISSION_CATALOGUE, e.g. "Build bots". */
+export function ReadOnlyBanner({ label }: { label: string }) {
   return (
     <div className="readonly-banner" role="status">
-      You are a <strong>{role ?? "viewer"}</strong> in this workspace: you can look, but saving is disabled.
+      Your role does not include <strong>{label}</strong>
     </div>
   );
 }

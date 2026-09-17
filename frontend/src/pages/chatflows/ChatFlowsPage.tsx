@@ -8,6 +8,7 @@ import type { Chatbot } from "../../entities/chatbot/types";
 import { downloadFlowDocument, readFlowDocument } from "../../features/flow-editor/lib/flow-document";
 import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
 import { Badge, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { AmbotShell } from "../../widgets/navigation/AmbotShell";
 
@@ -27,8 +28,8 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
   const fileInput = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [embedBot, setEmbedBot] = useState<Chatbot | null>(null);
-  const { me, can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
 
   const flowQuery = useQuery({
     queryKey: ["flow", selectedChatbot?.id],
@@ -77,7 +78,7 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
         </div>
       </header>
 
-      {readOnly && <ReadOnlyBanner role={me?.role} />}
+      {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
 
       <div className="chatflows-toolbar">
         <div className="chatflows-search-box">

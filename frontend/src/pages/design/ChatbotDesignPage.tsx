@@ -21,6 +21,7 @@ import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot, FlowDocument } from "../../entities/chatbot/types";
 import type { MessageMeta } from "../../entities/conversation";
 import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
 import { MessageBody } from "../../features/conversations-inbox/MessageBody";
 import { useWidgetSimulator } from "../../features/widget-embed/use-widget-simulator";
 import { ReadOnlyBanner, useToast } from "../../shared/ui";
@@ -65,8 +66,8 @@ interface ChatbotDesignPageInnerProps {
 function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { me, can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
   const sim = useWidgetSimulator(selectedChatbot?.id ?? null);
   const isPublished = selectedChatbot?.status === "published";
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -337,7 +338,7 @@ function ChatbotDesignPageInner({ selectedChatbot }: ChatbotDesignPageInnerProps
         </div>
       </header>
 
-      {readOnly && <ReadOnlyBanner role={me?.role} />}
+      {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
 
       <div className="design-split-layout">
         {/* ── Left Controls Column ─────────────────────────────────────────── */}

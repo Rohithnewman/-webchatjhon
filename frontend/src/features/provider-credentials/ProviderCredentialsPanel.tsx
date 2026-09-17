@@ -2,16 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { useMe } from "../../entities/me/api";
 import {
   PROVIDERS,
   providerCredentialApi,
   type ProviderName,
 } from "../../entities/provider-credential/api";
-import { Badge, Button, EmptyState, Field, Input, LoadingState, Panel, Select, useToast } from "../../shared/ui";
+import { permissionLabel } from "../../entities/workspace/api";
+import { Badge, Button, EmptyState, Field, Input, LoadingState, Panel, ReadOnlyBanner, Select, useToast } from "../../shared/ui";
 
 export function ProviderCredentialsPanel() {
   const toast = useToast();
   const client = useQueryClient();
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("knowledge:manage");
   const [provider, setProvider] = useState<ProviderName>("openai");
   const [apiKey, setApiKey] = useState("");
   const [label, setLabel] = useState("");
@@ -51,6 +55,8 @@ export function ProviderCredentialsPanel() {
 
   return (
     <div className="settings-grid">
+      {readOnly && <ReadOnlyBanner label={permissionLabel("knowledge:manage")} />}
+      {!readOnly && (
       <Panel>
         <Panel.Header title="Add a provider key" />
         <Panel.Body>
@@ -97,6 +103,7 @@ export function ProviderCredentialsPanel() {
           </form>
         </Panel.Body>
       </Panel>
+      )}
 
       <Panel>
         <Panel.Header title="Stored keys" />
@@ -115,9 +122,11 @@ export function ProviderCredentialsPanel() {
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {credential.is_default && <Badge tone="brand">default</Badge>}
-                  <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={() => remove.mutate(credential.id)}>
-                    Remove
-                  </Button>
+                  {!readOnly && (
+                    <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={() => remove.mutate(credential.id)}>
+                      Remove
+                    </Button>
+                  )}
                 </div>
               </div>
             ))

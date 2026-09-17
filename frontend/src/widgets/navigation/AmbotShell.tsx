@@ -25,7 +25,7 @@ export function AmbotShell({ children }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const { can, isReady } = useMe();
-  const readOnly = isReady && !can("features:use");
+  const readOnly = isReady && !can("bots:manage");
 
   const chatbotsQuery = useQuery({
     queryKey: ["chatbots"],
