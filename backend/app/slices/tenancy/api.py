@@ -24,6 +24,18 @@ class RoleView:
     in_use: int = 0
 
 
+# The auto-generated name of memberships.role_id's foreign key (verified
+# against a migrated database — see 0002_initial_schema.py, which declares
+# it with no explicit name). memberships has other constraints that can also
+# raise IntegrityError (e.g. uq_membership_active); only this one means "the
+# role was deleted out from under this write".
+_MEMBERSHIP_ROLE_FK = "memberships_role_id_fkey"
+
+
+def _is_role_fk_violation(exc: IntegrityError) -> bool:
+    return getattr(exc.orig, "constraint_name", None) == _MEMBERSHIP_ROLE_FK
+
+
 def _role_view(role: Role, in_use: int = 0) -> RoleView:
     return RoleView(
         id=role.id,
@@ -203,9 +215,23 @@ async def create_membership(
     workspace_id: uuid.UUID,
     role_id: uuid.UUID,
 ) -> uuid.UUID:
-    membership = await repository.insert_membership(
-        session, user_id=user_id, workspace_id=workspace_id, role_id=role_id
-    )
+    """Raises AppError (409 ROLE_NOT_FOUND) if `role_id` was deleted between
+    the caller resolving it and this insert landing — delete_role's FOR
+    UPDATE lock (see delete_role) makes this rare but not impossible: this
+    insert's FK check can still be the one waiting on that lock, and lose."""
+    try:
+        membership = await repository.insert_membership(
+            session, user_id=user_id, workspace_id=workspace_id, role_id=role_id
+        )
+    except IntegrityError as exc:
+        if not _is_role_fk_violation(exc):
+            raise
+        await session.rollback()
+        raise AppError(
+            code="ROLE_NOT_FOUND",
+            message="That role was deleted; choose another role",
+            status_code=409,
+        ) from exc
     return membership.id
 
 
@@ -284,13 +310,25 @@ async def list_memberships(
 async def set_membership_role(
     session: AsyncSession, *, workspace_id: uuid.UUID, user_id: uuid.UUID, role_id: uuid.UUID
 ) -> bool:
+    """Raises AppError (409 ROLE_NOT_FOUND) if `role_id` was deleted between
+    the caller resolving it and this update landing (see create_membership)."""
     membership = await repository.select_membership(
         session, workspace_id=workspace_id, user_id=user_id
     )
     if membership is None:
         return False
     membership.role_id = role_id
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        if not _is_role_fk_violation(exc):
+            raise
+        await session.rollback()
+        raise AppError(
+            code="ROLE_NOT_FOUND",
+            message="That role was deleted; choose another role",
+            status_code=409,
+        ) from exc
     return True
 
 
