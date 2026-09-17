@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,6 +110,27 @@ async def update_chatbot(
         target_type="chatbot",
         target_id=str(chatbot.id),
         metadata={"fields": sorted(changes)},
+    )
+    await session.commit()
+    await session.refresh(chatbot)
+    return chatbot
+
+
+async def mark_installed(
+    session: AsyncSession, *, workspace_id: uuid.UUID, actor_id: uuid.UUID, chatbot_id: uuid.UUID, url: str
+) -> Chatbot:
+    chatbot = await repository.select_chatbot(session, workspace_id=workspace_id, chatbot_id=chatbot_id, for_update=True)
+    if chatbot is None:
+        raise _not_found()
+    await repository.update_chatbot(chatbot, installed_url=url, installed_at=datetime.now(timezone.utc))
+    await audit_api.record(
+        session,
+        action=audit_api.actions.CHATBOT_INSTALL_VERIFIED,
+        workspace_id=workspace_id,
+        actor_id=actor_id,
+        target_type="chatbot",
+        target_id=str(chatbot.id),
+        metadata={"url": url},
     )
     await session.commit()
     await session.refresh(chatbot)

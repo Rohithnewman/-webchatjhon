@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,9 +10,9 @@ from app.core.errors import AppError
 from app.shared import permissions
 from app.shared.context import WorkspaceContext
 from app.slices.authz import api as authz_api
-from app.slices.chatbots import repository, service
+from app.slices.chatbots import install, repository, service
 from app.slices.chatbots.models import Chatbot, Flow
-from app.slices.chatbots.schemas import ChatbotCreate, ChatbotUpdate, FlowDocument
+from app.slices.chatbots.schemas import ChatbotCreate, ChatbotUpdate, FlowDocument, InstallVerifyRequest
 from app.slices.tenancy import api as tenancy_api
 
 router = APIRouter(prefix="/api/v1/chatbots", tags=["chatbots"])
@@ -155,6 +155,30 @@ async def delete_chatbot(
         chatbot_id=chatbot_id,
     )
     return success({"deleted": True})
+
+
+@router.post("/{chatbot_id}/install/verify")
+async def verify_install(
+    chatbot_id: uuid.UUID,
+    body: InstallVerifyRequest,
+    request: Request,
+    ctx: WorkspaceContext = Depends(write_context),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    chatbot = await _require_chatbot(session, workspace_id=ctx.workspace_id, chatbot_id=chatbot_id)
+    allowed_host = request.url.hostname or ""
+    target = install.check_url(body.url, allowed_host=allowed_host)
+    page = await install.fetch_page(target, allowed_host=allowed_host)
+    if page is None:
+        return success({"connected": False, "reason": "unreachable"})
+    final_url, html_body = page
+    verdict = install.inspect_page(html_body, str(chatbot.id))
+    if verdict != "connected":
+        return success({"connected": False, "reason": verdict})
+    chatbot = await service.mark_installed(
+        session, workspace_id=ctx.workspace_id, actor_id=ctx.user_id, chatbot_id=chatbot_id, url=final_url
+    )
+    return success({"connected": True, "url": chatbot.installed_url, "verified_at": chatbot.installed_at.isoformat()})
 
 
 @router.get("/{chatbot_id}/flow")

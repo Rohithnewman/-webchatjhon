@@ -79,7 +79,7 @@ async def insert_chatbot(
     return chatbot
 
 
-async def update_chatbot(chatbot: Chatbot, **changes: str) -> None:
+async def update_chatbot(chatbot: Chatbot, **changes: object) -> None:
     for field, value in changes.items():
         setattr(chatbot, field, value)
 
