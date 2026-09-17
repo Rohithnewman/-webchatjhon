@@ -5,12 +5,24 @@ SYSTEM_ROLES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "admin",
         (
-            permissions.WORKSPACE_MANAGE,
+            permissions.BOTS_MANAGE,
+            permissions.INBOX_REPLY,
+            permissions.KNOWLEDGE_MANAGE,
+            permissions.ANALYTICS_READ,
             permissions.MEMBERS_MANAGE,
-            permissions.FEATURES_USE,
+            permissions.WORKSPACE_MANAGE,
             permissions.FEATURES_READ,
         ),
     ),
-    ("member", (permissions.FEATURES_USE, permissions.FEATURES_READ)),
-    ("viewer", (permissions.FEATURES_READ,)),
+    (
+        "member",
+        (
+            permissions.BOTS_MANAGE,
+            permissions.INBOX_REPLY,
+            permissions.KNOWLEDGE_MANAGE,
+            permissions.ANALYTICS_READ,
+            permissions.FEATURES_READ,
+        ),
+    ),
+    ("viewer", (permissions.ANALYTICS_READ, permissions.FEATURES_READ)),
 )

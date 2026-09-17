@@ -15,7 +15,7 @@ from app.slices.knowledge.schemas import DocumentOut, KnowledgeBaseCreate, Knowl
 
 router = APIRouter(prefix="/api/v1/knowledge-bases", tags=["knowledge"])
 read_context = authz_api.require_permission(permissions.FEATURES_READ)
-write_context = authz_api.require_permission(permissions.FEATURES_USE)
+write_context = authz_api.require_permission(permissions.KNOWLEDGE_MANAGE)
 
 def base_out(row): return KnowledgeBaseOut(id=row.id, name=row.name, description=row.description, embedding_provider=row.embedding_provider, embedding_model=row.embedding_model, embedding_dimensions=row.embedding_dimensions).model_dump(mode="json")
 def doc_out(row): return DocumentOut(id=row.id, knowledge_base_id=row.knowledge_base_id, filename=row.filename, content_type=row.content_type, byte_size=row.byte_size, status=row.status, error=row.error, chunk_count=row.chunk_count).model_dump(mode="json")

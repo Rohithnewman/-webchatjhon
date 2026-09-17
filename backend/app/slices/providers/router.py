@@ -15,7 +15,7 @@ from app.slices.providers.schemas import CredentialCreate, CredentialOut
 router = APIRouter(prefix="/api/v1/provider-credentials", tags=["providers"])
 
 read_context = authz_api.require_permission(permissions.FEATURES_READ)
-write_context = authz_api.require_permission(permissions.FEATURES_USE)
+write_context = authz_api.require_permission(permissions.KNOWLEDGE_MANAGE)
 
 
 def _serialize(view: providers_api.CredentialView) -> dict:

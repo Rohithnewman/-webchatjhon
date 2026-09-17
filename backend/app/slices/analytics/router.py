@@ -16,7 +16,7 @@ from app.slices.conversations import api as conversations_api
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
-read_context = authz_api.require_permission(permissions.FEATURES_READ)
+read_context = authz_api.require_permission(permissions.ANALYTICS_READ)
 
 
 @router.get("/overview")

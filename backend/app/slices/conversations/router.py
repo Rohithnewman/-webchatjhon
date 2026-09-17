@@ -30,7 +30,7 @@ widget_router = APIRouter(prefix="/api/v1/widget", tags=["widget"])
 router = APIRouter(prefix="/api/v1/conversations", tags=["conversations"])
 
 read_context = authz_api.require_permission(permissions.FEATURES_READ)
-write_context = authz_api.require_permission(permissions.FEATURES_USE)
+write_context = authz_api.require_permission(permissions.INBOX_REPLY)
 
 
 def _message_data(message: ConversationMessage) -> dict[str, Any]:

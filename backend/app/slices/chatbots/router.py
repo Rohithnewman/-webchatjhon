@@ -18,7 +18,7 @@ from app.slices.tenancy import api as tenancy_api
 router = APIRouter(prefix="/api/v1/chatbots", tags=["chatbots"])
 
 read_context = authz_api.require_permission(permissions.FEATURES_READ)
-write_context = authz_api.require_permission(permissions.FEATURES_USE)
+write_context = authz_api.require_permission(permissions.BOTS_MANAGE)
 
 
 def _chatbot_data(chatbot: Chatbot, current_version: int | None = None) -> dict:

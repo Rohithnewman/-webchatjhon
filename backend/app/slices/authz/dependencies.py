@@ -67,6 +67,11 @@ def require_permission(permission: str) -> Callable:
     async def _guard(
         ctx: WorkspaceContext = Depends(get_workspace_context),
     ) -> WorkspaceContext:
+        # D3: features:read is implied by any active membership, regardless
+        # of what the role's own permission list contains — no role can
+        # ever lock a member out of a read route.
+        if permission == perms.FEATURES_READ:
+            return ctx
         if perms.ALL not in ctx.permissions and permission not in ctx.permissions:
             raise AppError(
                 code="FORBIDDEN",
