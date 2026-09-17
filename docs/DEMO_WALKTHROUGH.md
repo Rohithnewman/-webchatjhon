@@ -34,7 +34,7 @@ Use the FAQ bot page: ask "How long do refunds take?" → answer quotes the docu
 Conversation tiles, the per-day bar, per-bot table. Then Activity: the agent reply and the close are the two newest rows.
 
 ## 9. Engineering (1 min) — show the terminal
-Run `pytest` (≈190 tests against a throwaway Postgres database) and `lint-imports` (slice boundaries). Mention: vertical-slice backend, feature-sliced frontend, JWT with server-side role resolution, RLS, Postgres job queue with SKIP LOCKED, polling instead of WebSockets as a documented v1 trade-off.
+Run `pytest` (230 tests against a throwaway Postgres database) and `lint-imports` (slice boundaries). Mention: vertical-slice backend, feature-sliced frontend, JWT with server-side role resolution, RLS, Postgres job queue with SKIP LOCKED, polling instead of WebSockets as a documented v1 trade-off.
 
 ## Likely questions
 - **Why not WebSockets?** One auth model and simpler testing; the message API is turn-scoped so streaming is additive. Documented in the Phase 4 spec.

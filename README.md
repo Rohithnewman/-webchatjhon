@@ -111,7 +111,7 @@ backend/
                    (each: models, schemas, repository, router, api.py = public interface, tests)
   app/static/      widget.js, demo.html
   app/worker.py    job poller (Postgres job table, FOR UPDATE SKIP LOCKED)
-  alembic/         migrations 0001–0010
+  alembic/         migrations 0001–0015
   scripts/         seed_demo.py, demo_flows.py, create_superadmin.py, set_password.py
 frontend/src/
   app/             router + providers
