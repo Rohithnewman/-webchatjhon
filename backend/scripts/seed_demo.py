@@ -24,6 +24,8 @@ OWNER_PASSWORD = "Rogith@12345"
 OWNER_NAME = "rogith"
 OWNER_ORG = "Rogith"
 
+SUPPORT_ROLE_NAME = "Support agent"
+
 AGENT_EMAIL = "agent@rogith.example"
 AGENT_PASSWORD = "AgentPass123"
 VIEWER_EMAIL = "viewer@rogith.example"
@@ -88,11 +90,22 @@ def main() -> int:
         post("/provider-credentials", json={"provider": "ollama", "api_key": "", "label": "Local Ollama", "make_default": True})
         print("stored ollama credential")
 
-    # 3. Team members: the agent for the handoff demo, the viewer for the read-only UI.
+    # 3. A custom role, so the demo shows the organisation-defined-roles
+    #    feature, and team members: the agent (on that custom role) for the
+    #    handoff demo, the viewer for the read-only UI.
+    roles = client.get("/workspace/roles", headers=headers).json()["data"]
+    if not any(r["name"] == SUPPORT_ROLE_NAME for r in roles):
+        post("/workspace/roles", json={"name": SUPPORT_ROLE_NAME, "permissions": ["inbox:reply", "analytics:read"]})
+        print("created role", SUPPORT_ROLE_NAME)
+
     members = client.get("/workspace/members", headers=headers).json()["data"]
-    if not any(m["email"] == AGENT_EMAIL for m in members):
-        post("/workspace/members", json={"email": AGENT_EMAIL, "full_name": "Agent Ana", "password": AGENT_PASSWORD, "role": "member"})
+    agent_member = next((m for m in members if m["email"] == AGENT_EMAIL), None)
+    if agent_member is None:
+        post("/workspace/members", json={"email": AGENT_EMAIL, "full_name": "Agent Ana", "password": AGENT_PASSWORD, "role": SUPPORT_ROLE_NAME})
         print("added agent", AGENT_EMAIL)
+    elif agent_member["role"] != SUPPORT_ROLE_NAME:
+        client.patch(f"/workspace/members/{agent_member['user_id']}", headers=headers, json={"role": SUPPORT_ROLE_NAME}).raise_for_status()
+        print("reassigned agent to", SUPPORT_ROLE_NAME)
     if not any(m["email"] == VIEWER_EMAIL for m in members):
         post("/workspace/members", json={"email": VIEWER_EMAIL, "full_name": "Viewer Vik", "password": VIEWER_PASSWORD, "role": "viewer"})
         print("added viewer", VIEWER_EMAIL)
@@ -169,14 +182,25 @@ def main() -> int:
         post("/organization/workspaces", json={"name": "Sales"})
         print("created workspace Sales")
 
-    # 8. A second tenant, so the superadmin console lists more than one organisation.
+    # 8. A second tenant, so the superadmin console lists more than one
+    #    organisation, with its conversation limit overridden so the demo
+    #    shows a superadmin-set limit in action.
     session_for(NORTHWIND_EMAIL, NORTHWIND_PASSWORD, "Demo Owner", "Northwind Outdoor")
+    admin_orgs = client.get("/admin/organizations", headers=admin_headers).json()["data"]
+    northwind_org = next((o for o in admin_orgs if o["name"] == "Northwind Outdoor"), None)
+    if northwind_org is not None and northwind_org["subscription"]["conversation_limit"] != 3:
+        client.patch(
+            f"/admin/organizations/{northwind_org['id']}",
+            json={"conversation_limit": 3},
+            headers=admin_headers,
+        ).raise_for_status()
+        print("Northwind conversation_limit set to 3")
 
     root = api.replace("/api/v1", "")
     print("\nDemo ready.")
     print(f"  Superadmin          : {SUPERADMIN_EMAIL} / {SUPERADMIN_PASSWORD}")
     print(f"  Organisation owner  : {OWNER_EMAIL} / {owner_password}  (org Rogith, workspaces Default + Sales)")
-    print(f"  Agent (member)      : {AGENT_EMAIL} / {AGENT_PASSWORD}  (Rogith / Default)")
+    print(f"  Agent (Support agent): {AGENT_EMAIL} / {AGENT_PASSWORD}  (Rogith / Default)")
     print(f"  Viewer              : {VIEWER_EMAIL} / {VIEWER_PASSWORD}  (Rogith / Default)")
     print(f"  Second tenant owner : {NORTHWIND_EMAIL} / {NORTHWIND_PASSWORD}  (org Northwind Outdoor)")
     print(f"  Customer page       : {root}/demo?chatbot_id={support_id}")

@@ -53,9 +53,21 @@ class Role(CreatedAtMixin, Base):
             unique=True,
             postgresql_where=text("is_system"),
         ),
+        Index(
+            "uq_role_organization_name",
+            "organization_id",
+            "name",
+            unique=True,
+            postgresql_where=text("organization_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
+    # D3: NULL for the four system roles (every organisation's template
+    # set); set for an organisation's own role. See migration 0014 part B.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     permissions: Mapped[list[str]] = mapped_column(
         ARRAY(String), nullable=False, server_default=text("'{}'::varchar[]")

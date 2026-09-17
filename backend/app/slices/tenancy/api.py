@@ -7,7 +7,9 @@ from datetime import date, datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
+from app.shared import permissions as perms
 from app.slices.tenancy import repository
+from app.slices.tenancy.models import Role
 from app.slices.tenancy.seed import SYSTEM_ROLES
 
 
@@ -16,6 +18,20 @@ class RoleView:
     id: uuid.UUID
     name: str
     permissions: tuple[str, ...]
+    organization_id: uuid.UUID | None = None
+    is_system: bool = False
+    in_use: int = 0
+
+
+def _role_view(role: Role, in_use: int = 0) -> RoleView:
+    return RoleView(
+        id=role.id,
+        name=role.name,
+        permissions=tuple(role.permissions),
+        organization_id=role.organization_id,
+        is_system=role.is_system,
+        in_use=in_use,
+    )
 
 
 @dataclass(frozen=True)
@@ -41,7 +57,99 @@ async def get_role_by_name(session: AsyncSession, name: str) -> RoleView | None:
     role = await repository.select_role_by_name(session, name)
     if role is None:
         return None
-    return RoleView(id=role.id, name=role.name, permissions=tuple(role.permissions))
+    return _role_view(role)
+
+
+async def list_roles(session: AsyncSession, *, organization_id: uuid.UUID) -> list[RoleView]:
+    """The system roles plus this organisation's own roles, each with its
+    `in_use` membership count within this organisation."""
+    rows = await repository.list_roles_for_organization(session, organization_id=organization_id)
+    return [_role_view(role, in_use) for role, in_use in rows]
+
+
+def _with_implied_read(permission_list: list[str]) -> list[str]:
+    """features:read is implied for every role (D3) — the server always
+    includes it, regardless of what the caller submitted."""
+    if perms.FEATURES_READ in permission_list:
+        return list(permission_list)
+    return [*permission_list, perms.FEATURES_READ]
+
+
+async def create_role(
+    session: AsyncSession, *, organization_id: uuid.UUID, name: str, permissions: list[str]
+) -> RoleView:
+    role = await repository.insert_role(
+        session,
+        organization_id=organization_id,
+        name=name,
+        permissions=_with_implied_read(permissions),
+    )
+    return _role_view(role)
+
+
+async def update_role(
+    session: AsyncSession,
+    *,
+    organization_id: uuid.UUID,
+    role_id: uuid.UUID,
+    name: str | None = None,
+    permissions: list[str] | None = None,
+) -> RoleView | None:
+    """Returns None when the role does not exist or belongs to a different
+    organisation (the router renders that as 404). Raises AppError
+    (403 SYSTEM_ROLE) for one of the four system roles."""
+    role = await repository.select_role_for_organization(
+        session, organization_id=organization_id, role_id=role_id
+    )
+    if role is None:
+        return None
+    if role.is_system:
+        raise AppError(code="SYSTEM_ROLE", message="System roles cannot be changed", status_code=403)
+    new_permissions = _with_implied_read(permissions) if permissions is not None else None
+    role = await repository.update_role(session, role=role, name=name, permissions=new_permissions)
+    return _role_view(role)
+
+
+async def delete_role(
+    session: AsyncSession, *, organization_id: uuid.UUID, role_id: uuid.UUID
+) -> RoleView | None:
+    """Returns the deleted role's view, or None if it does not exist or
+    belongs to a different organisation (404). Raises AppError for a system
+    role (403 SYSTEM_ROLE) or a role still assigned to a member (409
+    ROLE_IN_USE)."""
+    role = await repository.select_role_for_organization(
+        session, organization_id=organization_id, role_id=role_id
+    )
+    if role is None:
+        return None
+    if role.is_system:
+        raise AppError(code="SYSTEM_ROLE", message="System roles cannot be deleted", status_code=403)
+    in_use = await repository.count_memberships_with_role(session, role_id=role.id)
+    if in_use > 0:
+        raise AppError(
+            code="ROLE_IN_USE",
+            message="This role is assigned to one or more members and cannot be deleted",
+            status_code=409,
+        )
+    view = _role_view(role)
+    await repository.delete_role(session, role=role)
+    return view
+
+
+async def resolve_role(
+    session: AsyncSession, *, organization_id: uuid.UUID, name: str
+) -> RoleView | None:
+    """The organisation's own role by this name, else the matching system
+    role — used to assign a role to a member by name (D3: organisation
+    roles first, then system roles)."""
+    role = await repository.select_role_by_name_for_organization(
+        session, organization_id=organization_id, name=name
+    )
+    if role is None:
+        role = await repository.select_role_by_name(session, name)
+    if role is None:
+        return None
+    return _role_view(role)
 
 
 async def create_tenant(
@@ -104,6 +212,7 @@ class WorkspaceView:
 @dataclass(frozen=True)
 class MemberRow:
     user_id: uuid.UUID
+    role_id: uuid.UUID
     role_name: str
     joined_at: datetime
 
@@ -130,7 +239,12 @@ async def list_memberships(
 ) -> list[MemberRow]:
     rows = await repository.list_memberships_with_roles(session, workspace_id=workspace_id)
     return [
-        MemberRow(user_id=membership.user_id, role_name=role.name, joined_at=membership.created_at)
+        MemberRow(
+            user_id=membership.user_id,
+            role_id=role.id,
+            role_name=role.name,
+            joined_at=membership.created_at,
+        )
         for membership, role in rows
     ]
 

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,85 @@ async def seed_roles(
 async def select_role_by_name(session: AsyncSession, name: str) -> Role | None:
     statement = select(Role).where(Role.name == name, Role.is_system.is_(True))
     return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def list_roles_for_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID
+) -> list[tuple[Role, int]]:
+    """The four system roles (organization_id IS NULL — every organisation's
+    template set) plus this organisation's own roles, each paired with how
+    many of this organisation's active memberships reference it."""
+    membership_counts = (
+        select(Membership.role_id, func.count().label("n"))
+        .join(Workspace, Workspace.id == Membership.workspace_id)
+        .where(Workspace.organization_id == organization_id, Membership.deleted_at.is_(None))
+        .group_by(Membership.role_id)
+        .subquery()
+    )
+    statement = (
+        select(Role, func.coalesce(membership_counts.c.n, 0))
+        .outerjoin(membership_counts, membership_counts.c.role_id == Role.id)
+        .where(or_(Role.organization_id == organization_id, Role.organization_id.is_(None)))
+        .order_by(Role.is_system.desc(), Role.name)
+    )
+    return [(row[0], int(row[1])) for row in (await session.execute(statement)).all()]
+
+
+async def insert_role(
+    session: AsyncSession, *, organization_id: uuid.UUID, name: str, permissions: list[str]
+) -> Role:
+    role = Role(organization_id=organization_id, name=name, permissions=permissions, is_system=False)
+    session.add(role)
+    await session.flush()
+    return role
+
+
+async def select_role_for_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID, role_id: uuid.UUID
+) -> Role | None:
+    """A role visible to this organisation by id: its own roles, plus the
+    system roles every organisation may use as templates. A role owned by a
+    different organisation is invisible — same as not found."""
+    statement = select(Role).where(
+        Role.id == role_id,
+        or_(Role.organization_id == organization_id, Role.organization_id.is_(None)),
+    )
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def select_role_by_name_for_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID, name: str
+) -> Role | None:
+    """This organisation's own role by name — never a system role. Used by
+    `resolve_role`'s organisation-first lookup, before it falls back to
+    `select_role_by_name` (the system catalogue)."""
+    statement = select(Role).where(Role.organization_id == organization_id, Role.name == name)
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def update_role(
+    session: AsyncSession, *, role: Role, name: str | None, permissions: list[str] | None
+) -> Role:
+    if name is not None:
+        role.name = name
+    if permissions is not None:
+        role.permissions = permissions
+    await session.flush()
+    return role
+
+
+async def delete_role(session: AsyncSession, *, role: Role) -> None:
+    await session.delete(role)
+    await session.flush()
+
+
+async def count_memberships_with_role(session: AsyncSession, *, role_id: uuid.UUID) -> int:
+    statement = (
+        select(func.count())
+        .select_from(Membership)
+        .where(Membership.role_id == role_id, Membership.deleted_at.is_(None))
+    )
+    return int((await session.execute(statement)).scalar_one())
 
 
 async def insert_membership(
