@@ -241,6 +241,36 @@ async def test_assign_custom_role_by_name(client):
     assert set(me.json()["data"]["permissions"]) == {"inbox:reply", "analytics:read", "features:read"}
 
 
+async def test_org_cannot_assign_another_orgs_custom_role(client):
+    """Spec §7: org A cannot assign org B's roles. A custom role is scoped to
+    the organisation that created it; another organisation naming it in
+    POST /workspace/members gets the same "unknown role" error an
+    unrecognised name would (resolve_role only looks at its own organisation's
+    roles before falling back to the system roles)."""
+    owner_a = await _register(client, "isoa@roles.test", "IsoOrgA")
+    owner_b = await _register(client, "isob@roles.test", "IsoOrgB")
+
+    created = await client.post(
+        ROLES_URL,
+        json={"name": "A's Support agent", "permissions": ["inbox:reply", "analytics:read"]},
+        headers=_headers(owner_a),
+    )
+    assert created.status_code == 201, created.text
+
+    added = await client.post(
+        "/api/v1/workspace/members",
+        json={
+            "email": "borrowed@isoorgb.test",
+            "full_name": "Teammate",
+            "password": "TeammatePass1",
+            "role": "A's Support agent",
+        },
+        headers=_headers(owner_b),
+    )
+    assert added.status_code == 400
+    assert added.json()["error"] == "VALIDATION_ERROR"
+
+
 async def test_custom_role_gates_by_permission_only(client):
     owner = await _register(client, "gate@roles.test", "GateOrg")
     conversation_id = await _handoff_conversation(client, owner)

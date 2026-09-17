@@ -131,9 +131,10 @@ async def update_role(
         role = await repository.update_role(session, role=role, name=name, permissions=new_permissions)
     except IntegrityError as exc:
         await session.rollback()
+        conflicting_name = name if name is not None else role.name
         raise AppError(
             code="ROLE_NAME_TAKEN",
-            message=f"A role named '{name}' already exists in this organisation",
+            message=f"A role named '{conflicting_name}' already exists in this organisation",
             status_code=409,
         ) from exc
     return _role_view(role)

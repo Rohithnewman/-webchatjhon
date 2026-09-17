@@ -72,9 +72,9 @@ The seed script, `set_password.py` and the demo passwords are for local demonstr
 
 | Account | Password | What it is |
 |---|---|---|
-| `admin@admin.com` | `AdminPassword123!` | platform **superadmin** (also owner of a private "Platform / Admin" workspace so login works) |
+| `admin@admin.com` | `AdminPassword123!` | platform **superadmin** — no organisation, no workspace; lands on `/admin` |
 | `rohithnewman@gmail.com` — name **rogith** | `Rogith@12345` | **owner** of organisation **Rogith** (org admin), workspace "Default", plus a second workspace "Sales" |
-| `agent@rogith.example` | `AgentPass123` | **member** in Rogith / Default — the live agent for the handoff demo |
+| `agent@rogith.example` | `AgentPass123` | custom role **Support agent** in Rogith / Default — the live agent for the handoff demo |
 | `viewer@rogith.example` | `ViewerPass123` | **viewer** in Rogith / Default — shows the read-only UI |
 | `demo@northwind.example` | `DemoPass123` | owner of a second organisation, **Northwind Outdoor**, so the superadmin console lists more than one tenant |
 
@@ -84,7 +84,9 @@ Superadmin console: log in as admin@admin.com → the shield icon in the left ra
 
 Organisation admin: log in as rohithnewman@gmail.com → Settings → Organisation (rename, add workspaces, switch).
 
-Workspace roles: agent@rogith.example (member) can build and reply; viewer@rogith.example sees a read-only dashboard.
+Workspace roles: agent@rogith.example holds the custom **Support agent** role (`inbox:reply`, `analytics:read`) — can reply in the inbox and view analytics, but cannot build bots, manage knowledge, members or the organisation; viewer@rogith.example sees a read-only dashboard.
+
+Permission catalogue (`app/shared/permissions.py`): `bots:manage` (Build bots), `inbox:reply` (Reply in inbox), `knowledge:manage` (Manage knowledge & AI keys), `analytics:read` (View analytics), `members:manage` (Manage members), `workspace:manage` (Manage organisation). Every member also implicitly holds `features:read`; owners hold everything (`*`). The four system roles (owner / admin / member / viewer) are fixed — organisations create their own roles from this catalogue in Settings → Roles, as the seed does for "Support agent".
 
 If rohithnewman@gmail.com already exists in your database with another password, either run the seed with `--owner-password <your password>` or align it first with `python -m scripts.set_password --email rohithnewman@gmail.com --password Rogith@12345`.
 

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.shared import permissions as perms
 
@@ -62,3 +62,9 @@ class RoleUpdate(BaseModel):
         if value is None:
             return None
         return _permissions_subset_of_catalogue(value)
+
+    @model_validator(mode="after")
+    def require_change(self) -> "RoleUpdate":
+        if self.name is None and self.permissions is None:
+            raise ValueError("supply name and/or permissions")
+        return self

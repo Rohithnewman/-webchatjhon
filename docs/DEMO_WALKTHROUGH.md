@@ -13,7 +13,10 @@ Show the workspace name, the owner, and the agent member. Point out roles. Open 
 - Suspend Northwind → log in as demo@northwind.example → lock screen → reactivate: in the Organisations tab, set Northwind Outdoor's status to "suspended"; in a private window, log in as demo@northwind.example and the dashboard is replaced by a lock screen ("This organisation has been suspended") with a Sign out button; back in the admin tab, set Northwind's status to "active" again and reload the private window — the dashboard is back.
 - Set Northwind's conversations-per-month limit to 3 in the Organisations tab; on the Northwind customer page the fourth chat start shows the widget's unavailable message.
 - Log back in as **rohithnewman@gmail.com** (organisation owner) — the account you started the session with: Settings → Organisation lists "Default" and "Sales"; switch to Sales with the dropdown in the rail — the chatbot list is empty because workspaces isolate data; switch back.
-- Settings → Team: the agent is a *member*, the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
+- Settings → Team: the agent holds the custom **Support agent** role (can reply in the inbox and view analytics; cannot build bots, manage knowledge, members or the organisation), the viewer is a *viewer*. Open a private window as **viewer@rogith.example**: the builder shows the read-only banner, the Inbox has no reply box.
+- Settings → Roles: show the permission checkbox grid, create a role (e.g. pick a couple of permissions and save), then assign it to a teammate from Settings → Team to show a custom role gating access end to end.
+
+Note: a database seeded before this change may still show an empty "Platform" organisation in the superadmin's Organisations list — it can be deleted.
 
 ## 3. Bring your own AI key (30 s) — Settings → AI Providers
 Show the stored Ollama credential ("ends with none" because Ollama is keyless). "Keys are encrypted before they reach the database and the API never returns them."
