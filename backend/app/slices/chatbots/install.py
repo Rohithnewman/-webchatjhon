@@ -3,6 +3,7 @@
 No database access here — the router owns persistence. `fetch_page` is the
 seam tests replace so no test ever touches the network.
 """
+import asyncio
 import ipaddress
 import re
 import socket
@@ -21,10 +22,10 @@ def _invalid(message: str) -> AppError:
     return AppError(code="VALIDATION_ERROR", message=message, status_code=400)
 
 
-def _is_internal(host: str) -> bool:
+async def _is_internal(host: str) -> bool:
     try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, None)
+    except (socket.gaierror, UnicodeError, ValueError):
         return True
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
@@ -33,7 +34,8 @@ def _is_internal(host: str) -> bool:
     return False
 
 
-def check_url(url: str, *, allowed_host: str) -> httpx.URL:
+# DNS rebinding between this check and the later fetch is accepted for this product.
+async def check_url(url: str, *, allowed_host: str) -> httpx.URL:
     """Only public http(s) URLs pass, plus the app's own host (so /demo verifies)."""
     try:
         parsed = httpx.URL(url.strip())
@@ -42,7 +44,7 @@ def check_url(url: str, *, allowed_host: str) -> httpx.URL:
     if parsed.scheme not in ("http", "https") or not parsed.host:
         raise _invalid("Enter a full URL starting with http:// or https://")
     host = parsed.host.lower()
-    if host != allowed_host.lower() and _is_internal(host):
+    if host != allowed_host.lower() and await _is_internal(host):
         raise _invalid("Enter the public URL of your website")
     return parsed
 
@@ -52,28 +54,29 @@ async def fetch_page(url: httpx.URL, *, allowed_host: str) -> tuple[str, str] | 
     headers = {"User-Agent": "WebChatBots-Verifier"}
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS, follow_redirects=False, headers=headers) as client:
         current = url
-        for _ in range(MAX_REDIRECTS + 1):
-            try:
-                async with client.stream("GET", current) as response:
-                    if response.is_redirect and response.next_request is not None:
-                        try:
-                            current = check_url(str(response.next_request.url), allowed_host=allowed_host)
-                        except AppError:
+        try:
+            async with asyncio.timeout(TIMEOUT_SECONDS):
+                for _ in range(MAX_REDIRECTS + 1):
+                    async with client.stream("GET", current) as response:
+                        if response.is_redirect and response.next_request is not None:
+                            try:
+                                current = await check_url(str(response.next_request.url), allowed_host=allowed_host)
+                            except AppError:
+                                return None
+                            continue
+                        if not response.is_success:
                             return None
-                        continue
-                    if not response.is_success:
-                        return None
-                    chunks: list[bytes] = []
-                    size = 0
-                    async for chunk in response.aiter_bytes():
-                        chunks.append(chunk)
-                        size += len(chunk)
-                        if size >= MAX_BYTES:
-                            break
-                    return str(current), b"".join(chunks).decode("utf-8", errors="replace")
-            except httpx.HTTPError:
+                        chunks: list[bytes] = []
+                        size = 0
+                        async for chunk in response.aiter_bytes():
+                            chunks.append(chunk)
+                            size += len(chunk)
+                            if size >= MAX_BYTES:
+                                break
+                        return str(current), b"".join(chunks).decode("utf-8", errors="replace")
                 return None
-        return None
+        except (httpx.HTTPError, httpx.InvalidURL, UnicodeError, ValueError, TimeoutError):
+            return None
 
 
 def inspect_page(body: str, chatbot_id: str) -> str:

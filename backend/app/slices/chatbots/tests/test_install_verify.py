@@ -2,6 +2,8 @@ import uuid
 
 import pytest
 
+from app.core.config import settings
+from app.core.errors import AppError
 from app.slices.chatbots import install
 
 REGISTRATION = {"email": "verify@x.com", "password": "Secret123", "full_name": "V", "org_name": "Acme"}
@@ -25,12 +27,13 @@ async def test_private_url_is_rejected(client):
     fetched = (await client.get(f"/api/v1/chatbots/{bot['id']}", headers=headers)).json()["data"]
     assert fetched["installed_url"] is None
     # the app's own host is always allowed, so the built-in /demo page verifies
-    install.check_url("http://test/demo?chatbot_id=x", allowed_host="test")
-    with pytest.raises(Exception):
-        install.check_url("http://localhost/demo", allowed_host="test")
+    await install.check_url("http://test/demo?chatbot_id=x", allowed_host="test")
+    with pytest.raises(AppError):
+        await install.check_url("http://localhost/demo", allowed_host="test")
 
 
 async def test_page_with_this_bots_script_connects(client, monkeypatch):
+    monkeypatch.setattr(settings, "PUBLIC_BASE_URL", "http://test")
     bot, headers = await _bot(client)
 
     async def fake_fetch(url, *, allowed_host):
@@ -51,6 +54,7 @@ async def test_page_with_this_bots_script_connects(client, monkeypatch):
 
 
 async def test_page_with_another_bots_script_is_wrong_chatbot(client, monkeypatch):
+    monkeypatch.setattr(settings, "PUBLIC_BASE_URL", "http://test")
     bot, headers = await _bot(client)
 
     async def fake_fetch(url, *, allowed_host):

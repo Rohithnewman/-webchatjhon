@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     LOCKOUT_MINUTES: int = 15
     RATE_LIMIT_PER_MINUTE: int = 20
 
+    # The install-verification host allow-list. Deliberately NOT derived from
+    # the inbound request's Host header, which is client-controlled and has
+    # no TrustedHostMiddleware guarding it here — an attacker could otherwise
+    # send an arbitrary Host to smuggle an internal/link-local URL past the
+    # SSRF check in app.slices.chatbots.install.
+    PUBLIC_BASE_URL: str = "http://127.0.0.1:8000"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def _parse_origins(cls, value: object) -> object:

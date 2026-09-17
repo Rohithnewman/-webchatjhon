@@ -1,12 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+import httpx
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.envelope import success
 from app.core.errors import AppError
+from app.core.rate_limit import rate_limit
 from app.shared import permissions
 from app.shared.context import WorkspaceContext
 from app.slices.authz import api as authz_api
@@ -157,17 +160,17 @@ async def delete_chatbot(
     return success({"deleted": True})
 
 
-@router.post("/{chatbot_id}/install/verify")
+@router.post("/{chatbot_id}/install/verify", dependencies=[Depends(rate_limit("install_verify"))])
 async def verify_install(
     chatbot_id: uuid.UUID,
     body: InstallVerifyRequest,
-    request: Request,
     ctx: WorkspaceContext = Depends(write_context),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     chatbot = await _require_chatbot(session, workspace_id=ctx.workspace_id, chatbot_id=chatbot_id)
-    allowed_host = request.url.hostname or ""
-    target = install.check_url(body.url, allowed_host=allowed_host)
+    # The app's own host, not the client-controlled Host header, is the allow-list anchor.
+    allowed_host = httpx.URL(settings.PUBLIC_BASE_URL).host.lower()
+    target = await install.check_url(body.url, allowed_host=allowed_host)
     page = await install.fetch_page(target, allowed_host=allowed_host)
     if page is None:
         return success({"connected": False, "reason": "unreachable"})
