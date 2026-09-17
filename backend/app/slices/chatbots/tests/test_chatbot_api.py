@@ -26,12 +26,30 @@ async def test_chatbot_crud_and_flow_version_lifecycle(client, session):
     headers = {"Authorization": f"Bearer {auth['access_token']}"}
     created = await client.post(
         "/api/v1/chatbots",
-        json={"name": "Support concierge", "description": "Front-line support"},
+        json={
+            "name": "Support concierge",
+            "description": "Front-line support",
+            "use_case": "leads",
+            "use_case_note": "   ",
+        },
         headers=headers,
     )
     assert created.status_code == 201
     chatbot = created.json()["data"]
     assert chatbot["current_version"] == 1
+    assert chatbot["platform"] == "website"
+    assert chatbot["use_case"] == "leads"
+    assert chatbot["use_case_note"] is None
+    assert chatbot["install_format"] is None
+    assert chatbot["installed_url"] is None
+    assert chatbot["installed_at"] is None
+
+    formatted = await client.patch(
+        f"/api/v1/chatbots/{chatbot['id']}",
+        json={"install_format": "landing_page"},
+        headers=headers,
+    )
+    assert formatted.json()["data"]["install_format"] == "landing_page"
 
     listed = await client.get("/api/v1/chatbots", headers=headers)
     assert [item["id"] for item in listed.json()["data"]] == [chatbot["id"]]

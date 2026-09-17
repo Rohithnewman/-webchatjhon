@@ -51,12 +51,18 @@ async def create_chatbot(
     actor_id: uuid.UUID,
     name: str,
     description: str,
+    platform: str = "website",
+    use_case: str | None = None,
+    use_case_note: str | None = None,
 ) -> tuple[Chatbot, Flow]:
     chatbot = await repository.insert_chatbot(
         session,
         workspace_id=workspace_id,
         name=name.strip(),
         description=description.strip(),
+        platform=platform,
+        use_case=use_case,
+        use_case_note=use_case_note,
     )
     flow = await repository.insert_next_flow_version(
         session,

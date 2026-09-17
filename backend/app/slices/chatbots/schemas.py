@@ -82,21 +82,40 @@ class FlowDocument(BaseModel):
         return self
 
 
+Platform = Literal["website"]
+UseCase = Literal["leads", "support", "sales", "appointment", "other"]
+InstallFormat = Literal["chat_button", "landing_page"]
+
+
 class ChatbotCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(default="", max_length=500)
+    platform: Platform = "website"
+    use_case: UseCase | None = None
+    use_case_note: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def strip_note(self) -> "ChatbotCreate":
+        if self.use_case_note is not None:
+            self.use_case_note = self.use_case_note.strip() or None
+        return self
 
 
 class ChatbotUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
     status: Literal["draft", "published", "archived"] | None = None
+    install_format: InstallFormat | None = None
 
     @model_validator(mode="after")
     def require_change(self) -> "ChatbotUpdate":
         if not self.model_fields_set:
             raise ValueError("at least one field must be supplied")
         return self
+
+
+class InstallVerifyRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
 
 
 class ChatbotOut(BaseModel):

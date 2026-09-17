@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +16,18 @@ class Chatbot(TimestampMixin, Base):
             "status IN ('draft', 'published', 'archived')",
             name="ck_chatbots_status",
         ),
+        CheckConstraint(
+            "platform IN ('website', 'whatsapp', 'instagram', 'facebook', 'telegram')",
+            name="ck_chatbots_platform",
+        ),
+        CheckConstraint(
+            "use_case IS NULL OR use_case IN ('leads', 'support', 'sales', 'appointment', 'other')",
+            name="ck_chatbots_use_case",
+        ),
+        CheckConstraint(
+            "install_format IS NULL OR install_format IN ('chat_button', 'landing_page', 'mobile_app', 'embedded')",
+            name="ck_chatbots_install_format",
+        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -28,6 +41,12 @@ class Chatbot(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="draft", index=True
     )
+    platform: Mapped[str] = mapped_column(String(20), nullable=False, server_default="website")
+    use_case: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    use_case_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    install_format: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    installed_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    installed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Flow(TimestampMixin, Base):

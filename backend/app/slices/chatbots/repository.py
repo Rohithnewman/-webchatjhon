@@ -62,11 +62,17 @@ async def insert_chatbot(
     workspace_id: uuid.UUID,
     name: str,
     description: str,
+    platform: str = "website",
+    use_case: str | None = None,
+    use_case_note: str | None = None,
 ) -> Chatbot:
     chatbot = Chatbot(
         workspace_id=workspace_id,
         name=name,
         description=description,
+        platform=platform,
+        use_case=use_case,
+        use_case_note=use_case_note,
     )
     session.add(chatbot)
     await session.flush()

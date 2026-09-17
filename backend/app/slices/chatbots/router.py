@@ -28,6 +28,12 @@ def _chatbot_data(chatbot: Chatbot, current_version: int | None = None) -> dict:
         "name": chatbot.name,
         "description": chatbot.description,
         "status": chatbot.status,
+        "platform": chatbot.platform,
+        "use_case": chatbot.use_case,
+        "use_case_note": chatbot.use_case_note,
+        "install_format": chatbot.install_format,
+        "installed_url": chatbot.installed_url,
+        "installed_at": chatbot.installed_at.isoformat() if chatbot.installed_at else None,
         "current_version": current_version,
         "created_at": chatbot.created_at.isoformat(),
         "updated_at": chatbot.updated_at.isoformat(),
@@ -91,6 +97,9 @@ async def create_chatbot(
         actor_id=ctx.user_id,
         name=body.name,
         description=body.description,
+        platform=body.platform,
+        use_case=body.use_case,
+        use_case_note=body.use_case_note,
     )
     return JSONResponse(
         status_code=201,
