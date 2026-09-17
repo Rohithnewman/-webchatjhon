@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   PLANS,
@@ -218,18 +218,28 @@ function LimitInput({
 
   useEffect(() => setDraft(initial), [initial]);
 
+  // Re-entrancy guard: set synchronously before onCommit is even called (and therefore before
+  // the shared mutation's pending state can flip), cleared in `finally` once the commit settles.
+  // Disabling the still-focused input when `pending` flips true makes the browser fire a second
+  // blur — this flag makes that (and any other re-entrant call) a no-op instead of a second PATCH.
+  const committing = useRef(false);
+
   // Reverts the draft to the last-known-good value when the PATCH is rejected — the mutation's
   // own onError already raised the toast, this just keeps the input from showing a value the
   // server never accepted.
   const send = async (v: number | null) => {
+    committing.current = true;
     try {
       await onCommit(v);
     } catch {
       setDraft(initial);
+    } finally {
+      committing.current = false;
     }
   };
 
   const commit = () => {
+    if (committing.current) return;
     const trimmed = draft.trim();
     if (trimmed === "") {
       if (overridden) void send(null);
