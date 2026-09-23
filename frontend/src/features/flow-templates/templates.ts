@@ -85,4 +85,67 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
       viewport: { x: 0, y: 0, zoom: 0.9 },
     }),
   },
+  {
+    id: "sell-products",
+    name: "Sell my products",
+    description: "Engages customers, showcases products, and captures an email to follow up.",
+    nodeTypes: ["message", "choice", "condition", "input", "end"],
+    build: () => ({
+      nodes: [
+        node("start", "start", 0, { label: "Start" }),
+        node("welcome", "message", 110, { label: "Welcome", message: "Hi there! 👋 Looking for something specific today?" }),
+        node("category", "choice", 220, { label: "Category", prompt: "What are you shopping for?", options: "New arrivals\nBest sellers\nDeals", variable: "category" }),
+        node("is-deals", "condition", 330, { label: "Deals?", variable: "category", operator: "equals", value: "Deals" }),
+        node("deals-msg", "message", 440, { label: "Deals", message: "Our current deals save up to 30% — this week only." }, 80),
+        node("catalogue-msg", "message", 440, { label: "Catalogue", message: "Great choice — {{category}} are our most popular picks right now." }, 420),
+        node("email", "input", 550, { label: "Ask email", prompt: "Share your email and we'll send you a personalised product list.", variable: "email", inputType: "email" }),
+        node("end", "end", 660, { label: "End", message: "Thanks! Check your inbox shortly." }),
+      ],
+      edges: [
+        edge("start", "welcome"), edge("welcome", "category"), edge("category", "is-deals"),
+        edge("is-deals", "deals-msg", "true"), edge("is-deals", "catalogue-msg", "false"),
+        edge("deals-msg", "email"), edge("catalogue-msg", "email"), edge("email", "end"),
+      ],
+      viewport: { x: 0, y: 0, zoom: 0.9 },
+    }),
+  },
+  {
+    id: "appointment-booking",
+    name: "Appointment booking",
+    description: "Collects a name, service, preferred time and email, then confirms the request.",
+    nodeTypes: ["message", "question", "choice", "input", "end"],
+    build: () => ({
+      nodes: [
+        node("start", "start", 0, { label: "Start" }),
+        node("welcome", "message", 110, { label: "Welcome", message: "Hello! 📅 Let's book your appointment." }),
+        node("name", "question", 220, { label: "Ask name", prompt: "What's your name?", variable: "name" }),
+        node("service", "choice", 330, { label: "Service", prompt: "Which service do you need?", options: "Consultation\nFollow-up\nOther", variable: "service" }),
+        node("when", "question", 440, { label: "Preferred time", prompt: "When would suit you? (day and time)", variable: "preferred_time" }),
+        node("email", "input", 550, { label: "Ask email", prompt: "And your email, so we can confirm?", variable: "email", inputType: "email" }),
+        node("confirm", "message", 660, { label: "Confirm", message: "Thanks {{name}}! We'll confirm your {{service}} for {{preferred_time}} at {{email}}." }),
+        node("end", "end", 770, { label: "End", message: "See you soon!" }),
+      ],
+      edges: [
+        edge("start", "welcome"), edge("welcome", "name"), edge("name", "service"), edge("service", "when"),
+        edge("when", "email"), edge("email", "confirm"), edge("confirm", "end"),
+      ],
+      viewport: { x: 0, y: 0, zoom: 0.9 },
+    }),
+  },
+  {
+    id: "generic",
+    name: "Generic welcome",
+    description: "A welcome message and one open question — the smallest flow to build on.",
+    nodeTypes: ["message", "question", "end"],
+    build: () => ({
+      nodes: [
+        node("start", "start", 0, { label: "Start" }),
+        node("welcome", "message", 110, { label: "Welcome", message: "Hi there! 👋 Welcome to our chatbot — we're glad to have you here! 😊✨" }),
+        node("ask", "question", 220, { label: "Ask", prompt: "How can we help you today? 😊💬", variable: "request" }),
+        node("end", "end", 330, { label: "End", message: "Thanks — we'll get back to you shortly." }),
+      ],
+      edges: [edge("start", "welcome"), edge("welcome", "ask"), edge("ask", "end")],
+      viewport: { x: 0, y: 0, zoom: 0.9 },
+    }),
+  },
 ];

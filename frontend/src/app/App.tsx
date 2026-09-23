@@ -10,6 +10,8 @@ import { AuthPage } from "../pages/auth/AuthPage";
 import { BuilderPage } from "../pages/builder/BuilderPage";
 import { ChatFlowsPage } from "../pages/chatflows/ChatFlowsPage";
 import { ConversationsPage } from "../pages/conversations/ConversationsPage";
+import { SelectPlatformPage } from "../pages/create-bot/SelectPlatformPage";
+import { SelectPurposePage } from "../pages/create-bot/SelectPurposePage";
 import { ChatbotDesignPage } from "../pages/design/ChatbotDesignPage";
 import { InstallChatbotPage } from "../pages/install/InstallChatbotPage";
 import { KnowledgePage } from "../pages/knowledge/KnowledgePage";
@@ -103,6 +105,8 @@ function AppRoutes() {
             )
           }
         />
+        <Route path="/chatbots/new" element={authenticated ? <SuperadminOnly><SelectPlatformPage /></SuperadminOnly> : <Navigate to="/login" replace />} />
+        <Route path="/chatbots/new/purpose" element={authenticated ? <SuperadminOnly><SelectPurposePage /></SuperadminOnly> : <Navigate to="/login" replace />} />
         <Route
           path="/chatbots/:chatbotId/flows"
           element={

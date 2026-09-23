@@ -4382,3 +4382,33 @@ input:checked + .slider:before {
   font-weight: var(--weight-medium);
   color: var(--color-ink);
 }
+
+/* ── Create-bot wizard ──────────────────────────────────────────────────── */
+.wizard-viewport { display: flex; flex-direction: column; }
+.wizard-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--color-border, #e5e7eb); background: #fff; }
+.wizard-back { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; font-weight: 600; }
+.wizard-header-right { display: flex; justify-content: flex-end; gap: 8px; }
+.wizard-stepper { display: flex; gap: 10px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: #6b7280; }
+.wizard-step { display: inline-flex; align-items: center; gap: 10px; }
+.wizard-step span { padding: 4px 10px; border-radius: 999px; }
+.wizard-step.is-current span { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+.wizard-step.is-done span { color: #111827; }
+.wizard-body { padding: 28px 40px; max-width: 1100px; width: 100%; margin: 0 auto; }
+.wizard-body h1 { font-size: 22px; margin: 0 0 4px; }
+.wizard-subtitle { color: #6b7280; margin: 0 0 24px; font-size: 14px; }
+.wizard-card-grid { display: grid; gap: 20px; }
+.wizard-grid-5 { grid-template-columns: repeat(3, minmax(220px, 280px)); justify-content: center; }
+.wizard-grid-purpose { grid-template-columns: repeat(2, minmax(260px, 320px)); justify-content: center; }
+.wizard-card { position: relative; text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 0 0 16px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.wizard-card:hover:not(:disabled) { box-shadow: 0 10px 30px rgba(17, 24, 39, .08); transform: translateY(-2px); }
+.wizard-card.is-disabled, .wizard-card:disabled { cursor: default; opacity: .7; }
+.wizard-card.is-pending { outline: 2px solid #2563eb; }
+.wizard-card.is-wide { grid-column: 1 / -1; flex-direction: row; align-items: center; padding: 0 16px 0 0; }
+.wizard-card-art { display: flex; align-items: center; justify-content: center; height: 120px; font-size: 44px; background: linear-gradient(135deg, #eef2ff, #f0fdfa); border-radius: 14px 14px 0 0; }
+.wizard-card.is-wide .wizard-card-art { width: 140px; height: 90px; border-radius: 14px 0 0 14px; }
+.wizard-card-title { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px 0; font-weight: 600; }
+.wizard-card-desc { padding: 0 16px; font-size: 13px; color: #6b7280; }
+.wizard-card-badge { position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f3f4f6; color: #6b7280; }
+.wizard-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.wizard-chip { border: none; background: #dbeafe; color: #1d4ed8; border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+@media (max-width: 900px) { .wizard-grid-5, .wizard-grid-purpose { grid-template-columns: 1fr; } .wizard-header { grid-template-columns: 1fr; gap: 10px; } }

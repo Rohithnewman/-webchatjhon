@@ -38,7 +38,17 @@ export interface Chatbot {
   current_version: number | null;
   created_at: string;
   updated_at: string;
+  platform: "website" | "whatsapp" | "instagram" | "facebook" | "telegram";
+  use_case: "leads" | "support" | "sales" | "appointment" | "other" | null;
+  use_case_note: string | null;
+  install_format: "chat_button" | "landing_page" | null;
+  installed_url: string | null;
+  installed_at: string | null;
 }
+
+export type InstallVerifyResult =
+  | { connected: true; url: string; verified_at: string }
+  | { connected: false; reason: "unreachable" | "script_missing" | "wrong_chatbot" };
 
 export interface FlowRecord {
   id: string;

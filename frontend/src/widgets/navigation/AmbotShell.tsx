@@ -5,7 +5,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
 import { useMe } from "../../entities/me/api";
-import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { TemplatesDialog } from "../../features/flow-templates/TemplatesDialog";
 import { LoadingState } from "../../shared/ui";
 import { ChatbotSubNav } from "./ChatbotSubNav";
@@ -22,7 +21,6 @@ interface Props {
 export function AmbotShell({ children }: Props) {
   const navigate = useNavigate();
   const { chatbotId } = useParams();
-  const [createOpen, setCreateOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const { can, isReady } = useMe();
   const readOnly = isReady && !can("bots:manage");
@@ -51,7 +49,7 @@ export function AmbotShell({ children }: Props) {
         chatbots={chatbots}
         selectedChatbot={selectedChatbot}
         onSelectChatbot={handleSelectBot}
-        onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
+        onCreateNewBot={readOnly ? undefined : () => navigate("/chatbots/new")}
         onOpenTemplates={readOnly ? undefined : () => setTemplatesOpen(true)}
       />
 
@@ -64,18 +62,6 @@ export function AmbotShell({ children }: Props) {
           },
         })}
       </main>
-
-      <CreateChatbotDialog
-        open={createOpen}
-        pending={false}
-        onClose={() => setCreateOpen(false)}
-        onSubmit={async (data) => {
-          const created = await chatbotApi.create(data);
-          await chatbotsQuery.refetch();
-          setCreateOpen(false);
-          navigate(`/chatbots/${created.id}/flows`);
-        }}
-      />
 
       <TemplatesDialog
         open={templatesOpen}

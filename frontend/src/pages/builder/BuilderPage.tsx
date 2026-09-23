@@ -22,7 +22,6 @@ import type { FlowDocument } from "../../entities/chatbot/types";
 import { useMe } from "../../entities/me/api";
 import { useAuthStore } from "../../entities/session/auth-store";
 import { permissionLabel } from "../../entities/workspace/api";
-import { CreateChatbotDialog } from "../../features/chatbot-create/ui/CreateChatbotDialog";
 import { ClassicBuilder } from "../../features/classic-builder/ClassicBuilder";
 import {
   ComponentLibraryModal,
@@ -56,7 +55,6 @@ function BuilderWorkspace() {
   const [builderMode, setBuilderMode] = useState<"classic" | "visual">("classic");
 
   const [panelTab, setPanelTab] = useState<"config" | "history">("config");
-  const [createOpen, setCreateOpen] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [compModalOpen, setCompModalOpen] = useState(false);
@@ -87,20 +85,6 @@ function BuilderWorkspace() {
 
   const notifyError = (error: unknown) =>
     toast.error(error instanceof ApiError ? error.message : "Something went wrong");
-
-  const createMutation = useMutation({
-    mutationFn: (input: { name: string; description: string }) => {
-      if (readOnly) throw new Error("Read-only role");
-      return chatbotApi.create(input);
-    },
-    onSuccess: async (chatbot) => {
-      await queryClient.invalidateQueries({ queryKey: ["chatbots"] });
-      setCreateOpen(false);
-      navigate(`/builder/${chatbot.id}`);
-      toast.success("Chatbot created");
-    },
-    onError: notifyError,
-  });
 
   // Tracks whether a classic-builder edit is queued or in flight so the save
   // pill can show "Unsaved" during the debounce window and after a failed
@@ -186,7 +170,7 @@ function BuilderWorkspace() {
         chatbots={chatbotsQuery.data ?? []}
         selectedChatbot={selectedChatbot}
         onSelectChatbot={(id) => navigate(`/builder/${id}`)}
-        onCreateNewBot={readOnly ? undefined : () => setCreateOpen(true)}
+        onCreateNewBot={readOnly ? undefined : () => navigate("/chatbots/new")}
         onOpenTemplates={readOnly ? undefined : () => setTemplatesOpen(true)}
       />
 
@@ -301,7 +285,7 @@ function BuilderWorkspace() {
                   if (id) setPanelTab("config");
                 }}
                 onViewportChange={graph.setViewport}
-                onCreateChatbot={() => setCreateOpen(true)}
+                onCreateChatbot={() => navigate("/chatbots/new")}
               />
 
               {graph.selectedNode && (
@@ -326,15 +310,6 @@ function BuilderWorkspace() {
         open={compModalOpen}
         onClose={() => setCompModalOpen(false)}
         onSelectComponent={handleAddFromLibrary}
-      />
-
-      <CreateChatbotDialog
-        open={createOpen}
-        pending={createMutation.isPending}
-        onClose={() => setCreateOpen(false)}
-        onSubmit={async (data) => {
-          await createMutation.mutateAsync(data);
-        }}
       />
 
       <WidgetEmbedDialog
