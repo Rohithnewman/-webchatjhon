@@ -15,7 +15,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { FlowDocument } from "../../entities/chatbot/types";
@@ -40,10 +40,13 @@ import { ReadOnlyBanner, useToast } from "../../shared/ui";
 import { FlowCanvas } from "../../widgets/flow-canvas/FlowCanvas";
 import { ChatbotSubNav } from "../../widgets/navigation/ChatbotSubNav";
 import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
+import { WizardHeader } from "../../widgets/wizard/WizardHeader";
 
 function BuilderWorkspace() {
   const { chatbotId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const wizard = searchParams.get("wizard") === "1";
   const queryClient = useQueryClient();
   const toast = useToast();
   const logout = useAuthStore((state) => state.logout);
@@ -62,6 +65,7 @@ function BuilderWorkspace() {
   const chatbotsQuery = useQuery({ queryKey: ["chatbots"], queryFn: chatbotApi.list });
   const selectedId = chatbotId ?? chatbotsQuery.data?.[0]?.id;
   const selectedChatbot = chatbotsQuery.data?.find((bot) => bot.id === selectedId) ?? null;
+  const installTarget = wizard ? `/chatbots/${selectedId}/install/format` : `/chatbots/${selectedId}/install`;
 
   const flowQuery = useQuery({
     queryKey: ["flow", selectedId],
@@ -175,6 +179,7 @@ function BuilderWorkspace() {
       />
 
       <main className="ambot-main-viewport">
+        {wizard && selectedId && <WizardHeader current="setup" backTo="/chatbots" />}
         {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
         {builderMode === "classic" ? (
           // ── CLASSIC BUILDER (3-Column View) ──────────────────────────────────
@@ -187,7 +192,7 @@ function BuilderWorkspace() {
               setBuilderMode("visual");
             }}
             onOpenTest={() => setEmbedOpen(true)}
-            onOpenInstall={() => navigate(`/chatbots/${selectedId}/install`)}
+            onOpenInstall={() => navigate(installTarget)}
             saveState={saveMutation.isPending ? "saving" : classicPending || graph.dirty ? "unsaved" : "saved"}
             readOnly={readOnly}
           />
@@ -261,7 +266,7 @@ function BuilderWorkspace() {
                 <button
                   type="button"
                   className="btn-canvas-install"
-                  onClick={() => navigate(`/chatbots/${selectedId}/install`)}
+                  onClick={() => navigate(installTarget)}
                 >
                   <Rocket size={15} />
                   <span>Install</span>
