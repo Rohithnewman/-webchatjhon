@@ -3301,6 +3301,13 @@ input:checked + .slider:before {
   max-width: 1200px;
 }
 
+.install-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .install-header h1 {
   font-size: 24px;
   font-weight: 800;
@@ -3410,6 +3417,32 @@ input:checked + .slider:before {
   line-height: 1.4;
   margin: 0;
 }
+
+.install-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.install-main { padding: 20px; }
+.install-card-header { display: flex; align-items: center; gap: 12px; }
+.install-card-header > div { display: flex; flex-direction: column; flex: 1; }
+.install-code-badge { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 700; }
+.install-pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #f3f4f6; color: #6b7280; }
+.install-pill.is-connected { background: #dcfce7; color: #166534; }
+.install-step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; margin-top: 20px; }
+.install-step > div { min-width: 0; }
+.install-step p { margin: 4px 0 10px; color: #6b7280; font-size: 13px; }
+.install-step-no { width: 24px; height: 24px; border-radius: 50%; background: #e5e7eb; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.install-verify-row { display: flex; gap: 10px; }
+.install-verify-row input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; }
+.btn-verify { padding: 10px 18px; border: none; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+.btn-verify:disabled { opacity: .6; cursor: default; }
+.install-verify-error { margin-top: 8px; color: #b91c1c; font-size: 13px; }
+.install-help { padding: 20px; text-align: center; }
+.install-help-icon { color: #2563eb; }
+.install-help h3 { margin: 8px 0 4px; }
+.install-help p { color: #6b7280; font-size: 13px; }
+.install-help-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px; margin-top: 8px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; color: inherit; text-decoration: none; cursor: pointer; }
+.install-help-row span { display: flex; flex-direction: column; }
+.install-help-row small { color: #6b7280; }
+.install-help-link { color: #2563eb; text-decoration: none; font-size: 13px; }
+@media (max-width: 900px) { .install-layout { grid-template-columns: 1fr; } }
 
 /* ── Classic Builder (3-Column Layout, Screenshots 3, 4, 5) ─────────────── */
 
