@@ -3,7 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
-import { LoadingState, useToast } from "../../shared/ui";
+import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
+import { LoadingState, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
 import { WizardHeader } from "../../widgets/wizard/WizardHeader";
 
@@ -21,12 +23,15 @@ export function InstallFormatPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const client = useQueryClient();
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
   const bot = useQuery({ queryKey: ["chatbot", chatbotId], queryFn: () => chatbotApi.get(chatbotId), enabled: Boolean(chatbotId) });
 
   const choose = useMutation({
     mutationFn: (format: Format) => chatbotApi.update(chatbotId, { install_format: format }),
     onSuccess: async (updated) => {
       await client.invalidateQueries({ queryKey: ["chatbots"] });
+      await client.invalidateQueries({ queryKey: ["chatbot", chatbotId] });
       const tab = FORMATS.find((f) => f.id === updated.install_format)?.tab ?? "website";
       navigate(`/chatbots/${chatbotId}/install?tab=${tab}`);
     },
@@ -43,6 +48,7 @@ export function InstallFormatPage() {
         <section className="wizard-body">
           <h1>Link bot to your platform</h1>
           <p className="wizard-subtitle">Choose how you want to make your chatbot accessible to your users.</p>
+          {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
           <div className="wizard-card-grid wizard-grid-formats" role="radiogroup" aria-label="Install format">
             {FORMATS.map((f) => {
               const selected = bot.data?.install_format === f.id;
@@ -53,7 +59,7 @@ export function InstallFormatPage() {
                   role="radio"
                   aria-checked={selected}
                   className={`format-card ${selected ? "is-selected" : ""} ${f.enabled ? "" : "is-disabled"}`}
-                  disabled={!f.enabled || choose.isPending}
+                  disabled={!f.enabled || choose.isPending || readOnly}
                   onClick={() => choose.mutate(f.id as Format)}
                 >
                   {f.recommended && <span className="format-recommended">★ Recommended</span>}
