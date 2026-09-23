@@ -37,8 +37,13 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
   useEffect(() => {
     if (!menuFor) return;
     const close = () => setMenuFor(null);
+    const closeOnEscape = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuFor(null); };
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [menuFor]);
 
   const flowQuery = useQuery({

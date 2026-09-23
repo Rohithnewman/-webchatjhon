@@ -28,7 +28,12 @@ export function RenameChatbotDialog({ chatbot, onClose }: Props) {
 
   const rename = useMutation({
     mutationFn: (data: FormData) => chatbotApi.update(chatbot!.id, { name: data.name }),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ["chatbots"] }); toast.success("Chatbot renamed"); onClose(); },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["chatbots"] });
+      await client.invalidateQueries({ queryKey: ["chatbot", chatbot?.id] });
+      toast.success("Chatbot renamed");
+      onClose();
+    },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not rename"),
   });
 

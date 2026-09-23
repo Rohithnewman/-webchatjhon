@@ -2090,6 +2090,9 @@
 }
 
 .chatflows-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 24px;
 }
 
@@ -2177,13 +2180,14 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .chatflows-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
 }
 
@@ -2196,12 +2200,28 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+.chatflows-table th:first-child {
+  border-top-left-radius: 10px;
+}
+
+.chatflows-table th:last-child {
+  border-top-right-radius: 10px;
+}
+
 .chatflows-table td {
   padding: 14px 18px;
   font-size: 13px;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+}
+
+.chatflows-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 10px;
+}
+
+.chatflows-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 10px;
 }
 
 .flow-name-btn {
@@ -2236,15 +2256,6 @@
   align-items: center;
   justify-content: center;
   transition: all 0.12s ease;
-}
-
-.action-icon-btn.is-test {
-  color: #1e40af;
-}
-
-.action-icon-btn.is-delete:hover {
-  color: #ef4444;
-  background: #fef2f2;
 }
 
 /* ── Read-only banner (missing a permission) ────────────────────────────── */
@@ -4465,4 +4476,3 @@ input:checked + .slider:before {
 .row-menu-list button.is-danger { color: #b91c1c; }
 .dialog-subtitle { margin: 0 0 12px; color: #6b7280; font-size: 13px; }
 .dialog-info-box { margin-top: 12px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 12px; color: #1e3a8a; }
-.chatflows-header { display: flex; justify-content: space-between; align-items: flex-start; }
