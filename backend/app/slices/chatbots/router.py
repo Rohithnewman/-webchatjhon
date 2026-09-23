@@ -1,6 +1,5 @@
 import uuid
 
-import httpx
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -168,10 +167,10 @@ async def verify_install(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     chatbot = await _require_chatbot(session, workspace_id=ctx.workspace_id, chatbot_id=chatbot_id)
-    # The app's own host, not the client-controlled Host header, is the allow-list anchor.
-    allowed_host = httpx.URL(settings.PUBLIC_BASE_URL).host.lower()
-    target = await install.check_url(body.url, allowed_host=allowed_host)
-    page = await install.fetch_page(target, allowed_host=allowed_host)
+    # The app's own origin, not the client-controlled Host header, is the allow-list anchor.
+    allowed_origin = install.parse_origin(settings.PUBLIC_BASE_URL)
+    target = await install.check_url(body.url, allowed_origin=allowed_origin)
+    page = await install.fetch_page(target, allowed_origin=allowed_origin)
     if page is None:
         return success({"connected": False, "reason": "unreachable"})
     final_url, html_body = page

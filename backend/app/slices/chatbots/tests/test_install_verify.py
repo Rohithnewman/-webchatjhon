@@ -26,17 +26,21 @@ async def test_private_url_is_rejected(client):
     assert response.json()["error"] == "VALIDATION_ERROR"
     fetched = (await client.get(f"/api/v1/chatbots/{bot['id']}", headers=headers)).json()["data"]
     assert fetched["installed_url"] is None
-    # the app's own host is always allowed, so the built-in /demo page verifies
-    await install.check_url("http://test/demo?chatbot_id=x", allowed_host="test")
+    # the app's own origin is always allowed, so the built-in /demo page verifies
+    origin = install.Origin(scheme="http", host="test", port=80)
+    await install.check_url("http://test/demo?chatbot_id=x", allowed_origin=origin)
     with pytest.raises(AppError):
-        await install.check_url("http://localhost/demo", allowed_host="test")
+        await install.check_url("http://localhost/demo", allowed_origin=origin)
+    # same host but a different port is NOT the app's origin, and localhost is internal
+    with pytest.raises(AppError):
+        await install.check_url("http://test:9999/demo", allowed_origin=origin)
 
 
 async def test_page_with_this_bots_script_connects(client, monkeypatch):
     monkeypatch.setattr(settings, "PUBLIC_BASE_URL", "http://test")
     bot, headers = await _bot(client)
 
-    async def fake_fetch(url, *, allowed_host):
+    async def fake_fetch(url, *, allowed_origin):
         return ("http://test/demo?chatbot_id=" + bot["id"], "<html>" + SCRIPT.format(id=bot["id"]) + "</html>")
 
     monkeypatch.setattr(install, "fetch_page", fake_fetch)
@@ -57,7 +61,7 @@ async def test_page_with_another_bots_script_is_wrong_chatbot(client, monkeypatc
     monkeypatch.setattr(settings, "PUBLIC_BASE_URL", "http://test")
     bot, headers = await _bot(client)
 
-    async def fake_fetch(url, *, allowed_host):
+    async def fake_fetch(url, *, allowed_origin):
         return ("http://test/demo", "<html>" + SCRIPT.format(id=uuid.uuid4()) + "</html>")
 
     monkeypatch.setattr(install, "fetch_page", fake_fetch)

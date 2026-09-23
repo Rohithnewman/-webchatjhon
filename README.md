@@ -24,6 +24,7 @@ Built as a final-year project. Backend: FastAPI + PostgreSQL. Frontend: React 19
 - Python 3.12 — `py --version`
 - Node.js 20+ — `node --version`
 - PostgreSQL 18 running locally with user `postgres` / password `postgres` (edit `backend/.env.development` if yours differ)
+- The install verifier's allow-list derives from `PUBLIC_BASE_URL` (default `http://127.0.0.1:8000`, in `backend/.env.development`) — set it to the backend's actual public origin when serving it elsewhere, otherwise Verify Installation rejects the site's own URL
 
 ## First-time setup
 
@@ -111,7 +112,7 @@ backend/
                    chatbots, providers, knowledge, jobs, conversations, analytics, health,
                    admin, organizations
                    (each: models, schemas, repository, router, api.py = public interface, tests)
-  app/static/      widget.js, demo.html
+  app/static/      widget.js, demo.html, chat.html
   app/worker.py    job poller (Postgres job table, FOR UPDATE SKIP LOCKED)
   alembic/         migrations 0001–0015
   scripts/         seed_demo.py, demo_flows.py, create_superadmin.py, set_password.py

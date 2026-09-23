@@ -7,6 +7,7 @@ import asyncio
 import ipaddress
 import re
 import socket
+from dataclasses import dataclass
 
 import httpx
 
@@ -16,6 +17,28 @@ TIMEOUT_SECONDS = 5.0
 MAX_BYTES = 1_000_000
 MAX_REDIRECTS = 3
 _ID_ATTR = re.compile(r"""data-chatbot-id\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+@dataclass(frozen=True)
+class Origin:
+    """scheme + host + effective port, used as the install verifier's allow-list anchor."""
+
+    scheme: str
+    host: str
+    port: int
+
+
+def parse_origin(url: str) -> Origin:
+    """Parse a base URL (e.g. settings.PUBLIC_BASE_URL) into its Origin."""
+    parsed = httpx.URL(url)
+    port = parsed.port if parsed.port is not None else _DEFAULT_PORTS.get(parsed.scheme, 0)
+    return Origin(scheme=parsed.scheme, host=parsed.host.lower(), port=port)
+
+
+def _origin_of(parsed: httpx.URL) -> Origin:
+    port = parsed.port if parsed.port is not None else _DEFAULT_PORTS.get(parsed.scheme, 0)
+    return Origin(scheme=parsed.scheme, host=parsed.host.lower(), port=port)
 
 
 def _invalid(message: str) -> AppError:
@@ -35,8 +58,8 @@ async def _is_internal(host: str) -> bool:
 
 
 # DNS rebinding between this check and the later fetch is accepted for this product.
-async def check_url(url: str, *, allowed_host: str) -> httpx.URL:
-    """Only public http(s) URLs pass, plus the app's own host (so /demo verifies)."""
+async def check_url(url: str, *, allowed_origin: Origin) -> httpx.URL:
+    """Only public http(s) URLs pass, plus the app's own origin (so /demo verifies)."""
     try:
         parsed = httpx.URL(url.strip())
     except Exception as exc:  # httpx raises InvalidURL subclasses
@@ -44,12 +67,12 @@ async def check_url(url: str, *, allowed_host: str) -> httpx.URL:
     if parsed.scheme not in ("http", "https") or not parsed.host:
         raise _invalid("Enter a full URL starting with http:// or https://")
     host = parsed.host.lower()
-    if host != allowed_host.lower() and await _is_internal(host):
+    if _origin_of(parsed) != allowed_origin and await _is_internal(host):
         raise _invalid("Enter the public URL of your website")
     return parsed
 
 
-async def fetch_page(url: httpx.URL, *, allowed_host: str) -> tuple[str, str] | None:
+async def fetch_page(url: httpx.URL, *, allowed_origin: Origin) -> tuple[str, str] | None:
     """Return (final_url, body) or None when the page cannot be fetched."""
     headers = {"User-Agent": "WebChatBots-Verifier"}
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS, follow_redirects=False, headers=headers) as client:
@@ -60,7 +83,7 @@ async def fetch_page(url: httpx.URL, *, allowed_host: str) -> tuple[str, str] | 
                     async with client.stream("GET", current) as response:
                         if response.is_redirect and response.next_request is not None:
                             try:
-                                current = await check_url(str(response.next_request.url), allowed_host=allowed_host)
+                                current = await check_url(str(response.next_request.url), allowed_origin=allowed_origin)
                             except AppError:
                                 return None
                             continue
