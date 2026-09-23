@@ -1,6 +1,9 @@
 import { Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
+import { ReadOnlyBanner } from "../../shared/ui";
 import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
 import { WizardHeader } from "../../widgets/wizard/WizardHeader";
 
@@ -14,6 +17,8 @@ const CHANNELS = [
 
 export function SelectPlatformPage() {
   const navigate = useNavigate();
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
   return (
     <div className="ambot-dashboard-shell">
       <PrimaryNav />
@@ -22,6 +27,7 @@ export function SelectPlatformPage() {
         <section className="wizard-body">
           <h1>Select Your Platform</h1>
           <p className="wizard-subtitle">Every platform offers unique features, this helps us to personalize your bot creation</p>
+          {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
           <div className="wizard-card-grid wizard-grid-5">
             {CHANNELS.map((c) => (
               <button
@@ -29,7 +35,7 @@ export function SelectPlatformPage() {
                 type="button"
                 className={`wizard-card ${c.enabled ? "" : "is-disabled"}`}
                 aria-disabled={!c.enabled}
-                disabled={!c.enabled}
+                disabled={!c.enabled || readOnly}
                 onClick={() => navigate("/chatbots/new/purpose", { state: { platform: "website" } })}
               >
                 <span className="wizard-card-art" aria-hidden>{c.emoji}</span>

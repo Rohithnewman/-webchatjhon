@@ -3,8 +3,10 @@ import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
+import { useMe } from "../../entities/me/api";
+import { permissionLabel } from "../../entities/workspace/api";
 import { FLOW_TEMPLATES } from "../../features/flow-templates/templates";
-import { Button, Dialog, Field, Input, useToast } from "../../shared/ui";
+import { Button, Dialog, Field, Input, ReadOnlyBanner, useToast } from "../../shared/ui";
 import { PrimaryNav } from "../../widgets/navigation/PrimaryNav";
 import { WizardHeader } from "../../widgets/wizard/WizardHeader";
 import { OTHER_SUGGESTIONS, PURPOSES, type Purpose } from "./purposes";
@@ -16,6 +18,8 @@ export function SelectPurposePage() {
   const client = useQueryClient();
   const [otherOpen, setOtherOpen] = useState(false);
   const [note, setNote] = useState("");
+  const { can, isReady } = useMe();
+  const readOnly = isReady && !can("bots:manage");
 
   const create = useMutation({
     mutationFn: async (input: { purpose: Purpose; note?: string }) => {
@@ -60,13 +64,14 @@ export function SelectPurposePage() {
         <section className="wizard-body">
           <h1>Select Your Purpose</h1>
           <p className="wizard-subtitle">Every platform offers unique features, this helps us to personalize your bot creation journey.</p>
+          {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
           <div className="wizard-card-grid wizard-grid-purpose">
             {PURPOSES.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 className={`wizard-card ${p.id === "other" ? "is-wide" : ""} ${create.isPending && create.variables?.purpose === p.id ? "is-pending" : ""}`}
-                disabled={create.isPending}
+                disabled={create.isPending || readOnly}
                 onClick={() => pick(p.id)}
               >
                 <span className="wizard-card-art" aria-hidden>{p.emoji}</span>
