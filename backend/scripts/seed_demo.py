@@ -132,18 +132,18 @@ def main() -> int:
     # 5. Three published chatbots.
     bots = {b["name"]: b for b in client.get("/chatbots", headers=headers).json()["data"]}
 
-    def ensure_bot(name, description, flow):
+    def ensure_bot(name, description, flow, use_case):
         bot = bots.get(name)
         if bot is None:
-            bot = post("/chatbots", json={"name": name, "description": description})
+            bot = post("/chatbots", json={"name": name, "description": description, "platform": "website", "use_case": use_case})
             client.put(f"/chatbots/{bot['id']}/flow", headers=headers, json=flow).raise_for_status()
             client.patch(f"/chatbots/{bot['id']}", headers=headers, json={"status": "published"}).raise_for_status()
             print("created + published", name, bot["id"])
         return bot["id"]
 
-    lead_id = ensure_bot("Lead Capture Bot", "Collects name, email and interest", lead_capture())
-    faq_id = ensure_bot("FAQ Bot", "Answers from the Northwind FAQ knowledge base", faq_knowledge(base["id"]))
-    support_id = ensure_bot("Support Bot", "Triage then hand off to a human", support_handoff())
+    lead_id = ensure_bot("Lead Capture Bot", "Collects name, email and interest", lead_capture(), "leads")
+    faq_id = ensure_bot("FAQ Bot", "Answers from the Northwind FAQ knowledge base", faq_knowledge(base["id"]), "support")
+    support_id = ensure_bot("Support Bot", "Triage then hand off to a human", support_handoff(), "support")
 
     # 5a. Rogith moves to the pro plan; Northwind stays on free/active.
     admin_login = client.post("/auth/login", json={"email": SUPERADMIN_EMAIL, "password": SUPERADMIN_PASSWORD})
