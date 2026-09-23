@@ -4457,3 +4457,12 @@ input:checked + .slider:before {
 .format-best { color: #6b7280; }
 .format-desc { color: #4b5563; }
 .wizard-footnote { margin-top: 20px; text-align: center; color: #6b7280; font-size: 12px; }
+.platform-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #f3f4f6; color: #374151; }
+.row-menu { position: relative; display: inline-block; }
+.row-menu-list { position: absolute; right: 0; top: 32px; z-index: 20; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 10px 30px rgba(17, 24, 39, .12); padding: 6px; display: flex; flex-direction: column; }
+.row-menu-list button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: none; background: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.row-menu-list button:hover { background: #f3f4f6; }
+.row-menu-list button.is-danger { color: #b91c1c; }
+.dialog-subtitle { margin: 0 0 12px; color: #6b7280; font-size: 13px; }
+.dialog-info-box { margin-top: 12px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 12px; color: #1e3a8a; }
+.chatflows-header { display: flex; justify-content: space-between; align-items: flex-start; }

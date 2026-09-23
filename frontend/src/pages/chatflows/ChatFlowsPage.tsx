@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, History, Play, Search, Trash2, Upload, UserCheck } from "lucide-react";
-import { useRef, useState } from "react";
+import { Download, Globe, History, MoreVertical, Pencil, Play, Plus, Search, Trash2, Upload, UserCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { chatbotApi } from "../../entities/chatbot/api";
 import type { Chatbot } from "../../entities/chatbot/types";
+import { RenameChatbotDialog } from "../../features/chatbot-rename/RenameChatbotDialog";
 import { downloadFlowDocument, readFlowDocument } from "../../features/flow-editor/lib/flow-document";
 import { WidgetEmbedDialog } from "../../features/widget-embed/WidgetEmbedDialog";
 import { useMe } from "../../entities/me/api";
@@ -28,8 +29,17 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
   const fileInput = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [embedBot, setEmbedBot] = useState<Chatbot | null>(null);
+  const [renameBot, setRenameBot] = useState<Chatbot | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const { can, isReady } = useMe();
   const readOnly = isReady && !can("bots:manage");
+
+  useEffect(() => {
+    if (!menuFor) return;
+    const close = () => setMenuFor(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [menuFor]);
 
   const flowQuery = useQuery({
     queryKey: ["flow", selectedChatbot?.id],
@@ -73,9 +83,14 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
     <div className="chatflows-page-container">
       <header className="chatflows-header">
         <div className="chatflows-title-col">
-          <h1>Website Chatflow</h1>
-          <p>Each chatbot has one live flow with a full version history. Publish to make the widget answer visitors.</p>
+          <h1>All Chatbots</h1>
+          <p>A view of all the chatbots you created till date.</p>
         </div>
+        {!readOnly && (
+          <button type="button" className="btn-create-flow" onClick={() => navigate("/chatbots/new")}>
+            <Plus size={15} /><span>Create New Chatbot</span>
+          </button>
+        )}
       </header>
 
       {readOnly && <ReadOnlyBanner label={permissionLabel("bots:manage")} />}
@@ -111,7 +126,7 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
         <table className="chatflows-table">
           <thead>
             <tr>
-              <th>Chatbot</th><th># of nodes</th><th>Created on</th><th>Last modified</th><th>Published</th><th>Versions</th><th className="th-actions">Actions</th>
+              <th>Bot Name</th><th>Status</th><th>Platform</th><th># of nodes</th><th>Created on</th><th>Last modified</th><th>Published</th><th>Versions</th><th className="th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -122,6 +137,8 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
                   <td className="td-flow-name">
                     <button type="button" className="flow-name-btn" onClick={() => navigate(`/builder/${bot.id}`)}>{bot.name}</button>
                   </td>
+                  <td><Badge tone={bot.status === "published" ? "brand" : "neutral"}>{bot.status === "published" ? "✓ Active" : bot.status === "draft" ? "Created" : "Archived"}</Badge></td>
+                  <td><span className="platform-chip"><Globe size={13} /> Website</span></td>
                   <td className="td-msg-count">{isSelected && flow ? flow.definition.nodes.length : "—"}</td>
                   <td>{fmt(bot.created_at)}</td>
                   <td>{fmt(bot.updated_at)}</td>
@@ -139,16 +156,17 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
                   </td>
                   <td>{isSelected ? <span className="version-pill"><History size={13} /> v{bot.current_version ?? 0} · {versionsQuery.data?.length ?? 0} saved</span> : `v${bot.current_version ?? 0}`}</td>
                   <td className="td-actions-cell">
-                    <button type="button" className="action-icon-btn is-test" title="Test in simulator" onClick={() => setEmbedBot(bot)}><UserCheck size={16} /></button>
-                    <button type="button" className="action-icon-btn" title="Open builder" onClick={() => navigate(`/builder/${bot.id}`)}><Play size={16} /></button>
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        className="action-icon-btn is-delete"
-                        title="Delete chatbot"
-                        onClick={() => { if (window.confirm(`Delete "${bot.name}" and all its flow versions?`)) removeBot.mutate(bot.id); }}
-                      ><Trash2 size={16} /></button>
-                    )}
+                    <div className="row-menu">
+                      <button type="button" className="action-icon-btn" aria-haspopup="menu" aria-expanded={menuFor === bot.id} title="Actions" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === bot.id ? null : bot.id); }}><MoreVertical size={16} /></button>
+                      {menuFor === bot.id && (
+                        <div className="row-menu-list" role="menu">
+                          {!readOnly && <button type="button" role="menuitem" onClick={() => setRenameBot(bot)}><Pencil size={14} /> Edit internal name</button>}
+                          <button type="button" role="menuitem" onClick={() => navigate(`/builder/${bot.id}`)}><Play size={14} /> Open builder</button>
+                          <button type="button" role="menuitem" onClick={() => setEmbedBot(bot)}><UserCheck size={14} /> Test bot</button>
+                          {!readOnly && <button type="button" role="menuitem" className="is-danger" onClick={() => { if (window.confirm(`Delete "${bot.name}" and all its flow versions?`)) removeBot.mutate(bot.id); }}><Trash2 size={14} /> Delete</button>}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -159,6 +177,7 @@ function ChatFlowsInner({ selectedChatbot, chatbots, refetchChatbots }: InnerPro
       </div>
 
       <WidgetEmbedDialog open={Boolean(embedBot)} chatbot={embedBot} onClose={() => setEmbedBot(null)} />
+      <RenameChatbotDialog chatbot={renameBot} onClose={() => setRenameBot(null)} />
     </div>
   );
 }
