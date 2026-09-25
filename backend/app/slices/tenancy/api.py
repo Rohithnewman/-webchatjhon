@@ -743,3 +743,29 @@ async def list_user_workspaces(session: AsyncSession, *, user_id: uuid.UUID) -> 
         )
         for workspace, organization, role in await repository.list_user_workspaces(session, user_id=user_id)
     ]
+
+
+async def create_organization_with_defaults(
+    session: AsyncSession,
+    *,
+    name: str,
+    plan: str = "free",
+    workspace_name: str = "Default",
+) -> OrganizationSummary:
+    tenant = await create_tenant(session, org_name=name.strip(), workspace_name=workspace_name.strip() or "Default")
+    if plan != "free":
+        await set_subscription(session, organization_id=tenant.organization_id, plan=plan)
+    summary = await get_organization_summary(session, organization_id=tenant.organization_id)
+    assert summary is not None
+    return summary
+
+
+async def delete_organization(
+    session: AsyncSession, *, organization_id: uuid.UUID
+) -> bool:
+    organization = await repository.select_organization(session, organization_id=organization_id, for_update=True)
+    if organization is None:
+        return False
+    await repository.soft_delete_organization(session, organization=organization)
+    return True
+

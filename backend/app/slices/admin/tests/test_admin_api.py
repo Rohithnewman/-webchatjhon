@@ -157,3 +157,32 @@ async def test_ensure_superadmin_creates_then_promotes(session):
         session, email="boot@platform.test", password="ignored", full_name="Boot"
     )
     assert again.id == created.id and again.is_superadmin is True
+
+
+async def test_create_and_delete_organization_as_superadmin(client, session):
+    root = await _superadmin(client, session)
+
+    # 1. Create organization
+    res = await client.post(
+        "/api/v1/admin/organizations",
+        json={"name": "New Super Tenant", "plan": "pro"},
+        headers=_headers(root),
+    )
+    assert res.status_code == 201
+    created_org = res.json()["data"]
+    assert created_org["name"] == "New Super Tenant"
+    assert created_org["plan"] == "pro"
+    org_id = created_org["id"]
+
+    # Verify listed in organizations
+    orgs_res = await client.get("/api/v1/admin/organizations", headers=_headers(root))
+    assert any(o["id"] == org_id for o in orgs_res.json()["data"])
+
+    # 2. Delete organization
+    del_res = await client.delete(f"/api/v1/admin/organizations/{org_id}", headers=_headers(root))
+    assert del_res.status_code == 200
+    assert del_res.json()["data"]["deleted"] is True
+
+    # Verify no longer in active organizations
+    orgs_after = await client.get("/api/v1/admin/organizations", headers=_headers(root))
+    assert not any(o["id"] == org_id for o in orgs_after.json()["data"])

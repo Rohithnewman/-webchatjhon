@@ -50,6 +50,10 @@ export const adminApi = {
   updateSubscription: (id: string, patch: SubscriptionPatch) =>
     apiRequest<AdminOrganization>(`/admin/organizations/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   users: () => apiRequest<AdminUser[]>("/admin/users"),
+  createOrganization: (data: { name: string; plan?: Plan; workspace_name?: string }) =>
+    apiRequest<AdminOrganization>("/admin/organizations", { method: "POST", body: JSON.stringify(data) }),
+  deleteOrganization: (id: string) =>
+    apiRequest<{ deleted: boolean }>(`/admin/organizations/${id}`, { method: "DELETE" }),
   updateUser: (id: string, flags: { is_active?: boolean; is_superadmin?: boolean }) =>
     apiRequest<AdminUser>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(flags) }),
 };

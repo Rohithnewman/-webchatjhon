@@ -11,7 +11,7 @@ from app.core.database import get_session
 from app.core.envelope import success
 from app.core.errors import AppError
 from app.shared.context import Principal
-from app.slices.admin.schemas import SubscriptionUpdate, UserFlagsUpdate
+from app.slices.admin.schemas import OrganizationCreate, SubscriptionUpdate, UserFlagsUpdate
 from app.slices.audit import api as audit_api
 from app.slices.chatbots import api as chatbots_api
 from app.slices.conversations import api as conversations_api
@@ -107,6 +107,50 @@ async def list_organizations(
     )
 
 
+@router.post("/organizations", status_code=201)
+async def create_organization(
+    body: OrganizationCreate,
+    admin: identity_api.UserSummary = Depends(require_superadmin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    name = body.name.strip()
+    if not name:
+        raise AppError(code="VALIDATION_ERROR", message="Organization name cannot be blank", status_code=400)
+    summary = await tenancy_api.create_organization_with_defaults(
+        session, name=name, plan=body.plan, workspace_name=body.workspace_name
+    )
+    await audit_api.record(
+        session,
+        action=audit_api.actions.ADMIN_ORGANIZATION_CREATED,
+        actor_id=admin.id,
+        target_type="organization",
+        target_id=str(summary.id),
+        metadata={"name": name, "plan": body.plan},
+    )
+    return success(_organization(summary, chatbots_used=0, conversations_used=0))
+
+
+@router.delete("/organizations/{organization_id}")
+async def delete_organization(
+    organization_id: uuid.UUID,
+    admin: identity_api.UserSummary = Depends(require_superadmin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    deleted = await tenancy_api.delete_organization(session, organization_id=organization_id)
+    if not deleted:
+        raise AppError(code="NOT_FOUND", message="Organization not found", status_code=404)
+    await audit_api.record(
+        session,
+        action=audit_api.actions.ADMIN_ORGANIZATION_DELETED,
+        actor_id=admin.id,
+        target_type="organization",
+        target_id=str(organization_id),
+        metadata={},
+    )
+    await session.commit()
+    return success({"deleted": True, "id": str(organization_id)})
+
+
 @router.patch("/organizations/{organization_id}")
 async def update_subscription(
     organization_id: uuid.UUID,
@@ -189,7 +233,11 @@ async def update_user(
         actor_id=admin.id,
         target_type="user",
         target_id=str(user_id),
-        metadata={"is_active": body.is_active, "is_superadmin": body.is_superadmin},
+        metadata={
+            k: v
+            for k, v in {"is_active": body.is_active, "is_superadmin": body.is_superadmin}.items()
+            if v is not None
+        },
     )
     await session.commit()
     organizations = await tenancy_api.platform_user_organizations(session)

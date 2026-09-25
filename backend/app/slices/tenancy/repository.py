@@ -265,6 +265,19 @@ async def select_organization(
     return (await session.execute(statement)).scalar_one_or_none()
 
 
+async def soft_delete_organization(
+    session: AsyncSession, *, organization: Organization
+) -> None:
+    now = datetime.now(timezone.utc)
+    organization.deleted_at = now
+    await session.execute(
+        update(Workspace)
+        .where(Workspace.organization_id == organization.id, Workspace.deleted_at.is_(None))
+        .values(deleted_at=now)
+    )
+    await session.flush()
+
+
 async def count_organizations_and_workspaces(session: AsyncSession) -> tuple[int, int]:
     organizations = (
         await session.execute(select(func.count()).select_from(Organization).where(Organization.deleted_at.is_(None)))

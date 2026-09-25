@@ -4,6 +4,12 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+class OrganizationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    plan: Literal["free", "pro", "enterprise"] = "free"
+    workspace_name: str = Field(default="Default", min_length=1, max_length=200)
+
+
 class SubscriptionUpdate(BaseModel):
     plan: Literal["free", "pro", "enterprise"] | None = None
     status: Literal["active", "suspended"] | None = None

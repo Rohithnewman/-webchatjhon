@@ -74,7 +74,7 @@ export function ChatbotSubNav({
 
       <nav className="chatbot-sub-menu">
         <Link
-          to={`/chatbots/${currentId}/flows`}
+          to={currentId ? `/chatbots/${currentId}/flows` : "/chatbots"}
           className={`sub-menu-item ${
             path.includes("/flows") || path === "/chatbots" || path.startsWith("/builder")
               ? "is-active"
@@ -86,7 +86,7 @@ export function ChatbotSubNav({
         </Link>
 
         <Link
-          to={`/chatbots/${currentId}/design`}
+          to={currentId ? `/chatbots/${currentId}/design` : "/chatbots"}
           className={`sub-menu-item ${path.includes("/design") ? "is-active" : ""}`}
         >
           <Palette size={17} />
@@ -94,7 +94,7 @@ export function ChatbotSubNav({
         </Link>
 
         <Link
-          to={`/chatbots/${currentId}/install`}
+          to={currentId ? `/chatbots/${currentId}/install` : "/chatbots"}
           className={`sub-menu-item ${path.includes("/install") ? "is-active" : ""}`}
         >
           <Rocket size={17} />

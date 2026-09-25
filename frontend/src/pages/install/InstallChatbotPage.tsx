@@ -25,6 +25,14 @@ const REASONS: Record<Extract<InstallVerifyResult, { connected: false }>["reason
 type Tab = "website" | "landing";
 const TABS = [{ id: "website", label: "Website Chatbot" }, { id: "landing", label: "Landing Page Bot" }] as const;
 
+function safeHost(url: string): string {
+  try {
+    return new URL(url.includes("://") ? url : `https://${url}`).host;
+  } catch {
+    return url;
+  }
+}
+
 function useCopy() {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
@@ -69,7 +77,7 @@ function WebsiteTab({ bot, readOnly }: { bot: Chatbot; readOnly: boolean }) {
         <div className="install-card-header">
           <span className="install-code-badge">&lt;/&gt;</span>
           <div><strong>Chatbot Installation</strong><span>Installation instructions to install for Custom Platform</span></div>
-          <span className={`install-pill ${connected ? "is-connected" : ""}`}>{connected ? `Connected · ${new URL(bot.installed_url!).host}` : "Not Connected"}</span>
+          <span className={`install-pill ${connected ? "is-connected" : ""}`}>{connected ? `Connected · ${safeHost(bot.installed_url!)}` : "Not Connected"}</span>
         </div>
 
         <div className="install-step">
