@@ -186,3 +186,37 @@ async def test_create_and_delete_organization_as_superadmin(client, session):
     # Verify no longer in active organizations
     orgs_after = await client.get("/api/v1/admin/organizations", headers=_headers(root))
     assert not any(o["id"] == org_id for o in orgs_after.json()["data"])
+
+
+async def test_reset_user_password_and_delete_user_as_superadmin(client, session):
+    root = await _superadmin(client, session)
+    user_bundle = await _register(client, "user_to_manage@test.com", "Tenant Org")
+    user_id = user_bundle["user_id"]
+
+    # 1. Reset password
+    res_reset = await client.post(
+        f"/api/v1/admin/users/{user_id}/reset-password",
+        json={"password": "brand_new_secret_password_123"},
+        headers=_headers(root),
+    )
+    assert res_reset.status_code == 200
+
+    # Test login with new password
+    login_res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "user_to_manage@test.com", "password": "brand_new_secret_password_123"},
+    )
+    assert login_res.status_code == 200
+
+    # 2. Cannot delete oneself
+    self_del = await client.delete(f"/api/v1/admin/users/{root['user_id']}", headers=_headers(root))
+    assert self_del.status_code == 400
+
+    # 3. Delete user
+    del_res = await client.delete(f"/api/v1/admin/users/{user_id}", headers=_headers(root))
+    assert del_res.status_code == 200
+    assert del_res.json()["data"]["deleted"] is True
+
+    # Verify user no longer listed
+    users_after = await client.get("/api/v1/admin/users", headers=_headers(root))
+    assert not any(u["id"] == str(user_id) for u in users_after.json()["data"])

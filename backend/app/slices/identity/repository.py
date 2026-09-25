@@ -93,3 +93,23 @@ async def select_users(
 async def select_all_users(session: AsyncSession) -> list[User]:
     statement = select(User).where(User.deleted_at.is_(None)).order_by(User.created_at, User.id)
     return list((await session.execute(statement)).scalars().all())
+
+
+async def revoke_all_user_refresh_tokens(session: AsyncSession, *, user_id: uuid.UUID) -> int:
+    statement = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    result = await session.execute(statement)
+    return result.rowcount or 0
+
+
+async def soft_delete_user(session: AsyncSession, *, user_id: uuid.UUID) -> bool:
+    user = await select_user(session, user_id, for_update=True)
+    if user is None:
+        return False
+    user.deleted_at = datetime.now(timezone.utc)
+    user.is_active = False
+    await session.flush()
+    return True

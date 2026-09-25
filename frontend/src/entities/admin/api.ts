@@ -42,7 +42,17 @@ export interface SubscriptionPatch {
 
 export interface PlatformStats { organizations: number; workspaces: number; users: number; chatbots: number; conversations: number; locked_organizations: number; }
 export interface AdminOrganization { id: string; name: string; plan: Plan; created_at: string; workspace_count: number; member_count: number; subscription: Subscription; }
-export interface AdminUser { id: string; email: string; full_name: string; is_active: boolean; is_superadmin: boolean; created_at: string | null; organizations: string[]; }
+export interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_superadmin: boolean;
+  is_org_admin?: boolean;
+  roles?: string[];
+  created_at: string | null;
+  organizations: string[];
+}
 
 export const adminApi = {
   stats: () => apiRequest<PlatformStats>("/admin/stats"),
@@ -56,4 +66,11 @@ export const adminApi = {
     apiRequest<{ deleted: boolean }>(`/admin/organizations/${id}`, { method: "DELETE" }),
   updateUser: (id: string, flags: { is_active?: boolean; is_superadmin?: boolean }) =>
     apiRequest<AdminUser>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(flags) }),
+  resetPassword: (id: string, password: string) =>
+    apiRequest<{ message: string }>(`/admin/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  deleteUser: (id: string) =>
+    apiRequest<{ deleted: boolean }>(`/admin/users/${id}`, { method: "DELETE" }),
 };

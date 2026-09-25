@@ -654,6 +654,19 @@ async def platform_user_organizations(session: AsyncSession) -> dict[uuid.UUID, 
     return out
 
 
+async def platform_user_memberships_summary(
+    session: AsyncSession,
+) -> dict[uuid.UUID, dict[str, list[str]]]:
+    out: dict[uuid.UUID, dict[str, list[str]]] = {}
+    for user_id, org_name, role_name in await repository.list_user_organization_and_roles(session):
+        user_entry = out.setdefault(user_id, {"organizations": [], "roles": []})
+        if org_name not in user_entry["organizations"]:
+            user_entry["organizations"].append(org_name)
+        if role_name not in user_entry["roles"]:
+            user_entry["roles"].append(role_name)
+    return out
+
+
 @dataclass(frozen=True)
 class OrganizationView:
     id: uuid.UUID

@@ -300,6 +300,21 @@ async def list_user_organization_names(session: AsyncSession) -> list[tuple[uuid
     return [(row[0], row[1]) for row in (await session.execute(statement)).all()]
 
 
+async def list_user_organization_and_roles(
+    session: AsyncSession,
+) -> list[tuple[uuid.UUID, str, str]]:
+    statement = (
+        select(Membership.user_id, Organization.name, Role.name)
+        .join(Workspace, Workspace.id == Membership.workspace_id)
+        .join(Organization, Organization.id == Workspace.organization_id)
+        .join(Role, Role.id == Membership.role_id)
+        .where(Membership.deleted_at.is_(None))
+        .distinct()
+        .order_by(Organization.name)
+    )
+    return [(row[0], row[1], row[2]) for row in (await session.execute(statement)).all()]
+
+
 async def list_workspaces_with_member_counts(
     session: AsyncSession, *, organization_id: uuid.UUID
 ) -> list[tuple[Workspace, int]]:

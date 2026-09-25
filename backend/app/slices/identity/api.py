@@ -115,16 +115,36 @@ async def ensure_superadmin(
     return summary
 
 
+async def reset_user_password(
+    session: AsyncSession, *, user_id: uuid.UUID, new_password: str
+) -> bool:
+    user = await repository.select_user(session, user_id, for_update=True)
+    if user is None:
+        return False
+    user.password_hash = security.hash_password(new_password)
+    await repository.revoke_all_user_refresh_tokens(session, user_id=user_id)
+    await session.flush()
+    return True
+
+
+async def delete_user(session: AsyncSession, *, user_id: uuid.UUID) -> bool:
+    await tenancy_api.remove_all_memberships(session, user_id=user_id)
+    await repository.revoke_all_user_refresh_tokens(session, user_id=user_id)
+    return await repository.soft_delete_user(session, user_id=user_id)
+
+
 from app.slices.identity.dependencies import get_current_principal  # noqa: E402
 
 __all__ = [
     "UserSummary",
     "create_user",
+    "delete_user",
     "ensure_superadmin",
     "get_active_user",
     "get_current_principal",
     "get_user_by_email",
     "list_users",
     "platform_list_users",
+    "reset_user_password",
     "set_user_flags",
 ]

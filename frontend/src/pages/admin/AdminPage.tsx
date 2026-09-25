@@ -5,12 +5,16 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Key,
   Layers,
   MoreVertical,
   Plus,
   Power,
+  RefreshCw,
   Search,
+  Shield,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Trash2,
   UserCheck,
@@ -1728,54 +1732,510 @@ function LimitInput({
 }
 
 /* ==========================================================================
-   Users Tab
+   Users Tab (Fine-Tuned Multi-Tenant User Management)
    ========================================================================== */
+
+function UserPasswordResetDialog({
+  user,
+  onClose,
+  onReset,
+  pending,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onReset: (password: string) => Promise<void>;
+  pending: boolean;
+}) {
+  const [password, setPassword] = useState("");
+
+  const generatePassword = () => {
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*";
+    let gen = "";
+    for (let i = 0; i < 14; i++) {
+      gen += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(gen);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) return;
+    await onReset(password);
+    onClose();
+  };
+
+  return (
+    <Dialog open={true} onClose={onClose} title={`Reset Password: ${user.full_name}`}>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <p className="dialog-subtitle" style={{ margin: 0 }}>
+          Set a new temporary password for <strong>{user.email}</strong>. All active sessions and refresh tokens will be immediately revoked.
+        </p>
+        <div className="admin-modal-field">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label>New Password (min 8 characters) *</label>
+            <button
+              type="button"
+              onClick={generatePassword}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#2563eb",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <RefreshCw size={12} /> Generate Secure
+            </button>
+          </div>
+          <input
+            type="text"
+            required
+            minLength={8}
+            placeholder="Enter or generate new password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={pending}
+            disabled={password.length < 8 || pending}
+            icon={<Key size={14} />}
+          >
+            Reset Password
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+function UserDeleteDialog({
+  user,
+  onClose,
+  onConfirm,
+  pending,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+  pending: boolean;
+}) {
+  return (
+    <Dialog open={true} onClose={onClose} title="Delete User">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <p className="dialog-subtitle" style={{ margin: 0 }}>
+          Are you sure you want to permanently delete user <strong>{user.full_name}</strong> (<code>{user.email}</code>)?
+        </p>
+        <p style={{ margin: 0, fontSize: 13, color: "#dc2626", background: "#fef2f2", padding: "10px 14px", borderRadius: 8 }}>
+          ⚠️ This will soft-delete their account, detach all multi-tenant organization memberships, and revoke all active login sessions.
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            loading={pending}
+            onClick={async () => {
+              await onConfirm();
+              onClose();
+            }}
+            icon={<Trash2 size={14} />}
+          >
+            Delete User
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function getUserInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return (name.slice(0, 2) || "U").toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  { bg: "#e0ecff", color: "#1d4ed8" },
+  { bg: "#fef3c7", color: "#b45309" },
+  { bg: "#ede9fe", color: "#6d28d9" },
+  { bg: "#dcfce7", color: "#15803d" },
+  { bg: "#fce7f3", color: "#be185d" },
+];
+
+function getAvatarStyle(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash + id.charCodeAt(i)) % AVATAR_COLORS.length;
+  }
+  return AVATAR_COLORS[hash];
+}
+
 function Users({ myUserId }: { myUserId: string }) {
   const toast = useToast();
   const client = useQueryClient();
-  const users = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "org_admin" | "member" | "superadmin">("all");
+  const [resetTargetUser, setResetTargetUser] = useState<AdminUser | null>(null);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUser | null>(null);
+
+  const users = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users, refetchInterval: 10_000 });
+
   const update = useMutation({
-    mutationFn: (input: { id: string; flags: { is_active?: boolean; is_superadmin?: boolean } }) => adminApi.updateUser(input.id, input.flags),
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ["admin"] }); toast.success("User updated"); },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed"),
+    mutationFn: (input: { id: string; flags: { is_active?: boolean; is_superadmin?: boolean } }) =>
+      adminApi.updateUser(input.id, input.flags),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("User updated successfully");
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to update user"),
   });
+
+  const resetPassword = useMutation({
+    mutationFn: (input: { id: string; password: string }) =>
+      adminApi.resetPassword(input.id, input.password),
+    onSuccess: () => {
+      toast.success("Password reset successfully. The user can now log in with the new password.");
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to reset password"),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("User deleted successfully");
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete user"),
+  });
+
   if (!users.data) return <LoadingState label="Loading users" />;
+
+  const allUsers = users.data;
+  const activeCount = allUsers.filter((u) => u.is_active).length;
+  const orgAdminCount = allUsers.filter((u) => u.is_org_admin).length;
+  const superAdminCount = allUsers.filter((u) => u.is_superadmin).length;
+
+  // Extract all unique organization names
+  const allOrganizations = Array.from(
+    new Set(allUsers.flatMap((u) => u.organizations))
+  ).filter(Boolean);
+
+  // Filter users
+  const filteredUsers = allUsers.filter((u) => {
+    // Search filter
+    const matchesSearch =
+      u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // Org filter
+    if (selectedOrg !== "all") {
+      if (!u.organizations.includes(selectedOrg)) return false;
+    }
+
+    // Role filter
+    if (roleFilter === "superadmin" && !u.is_superadmin) return false;
+    if (roleFilter === "org_admin" && !u.is_org_admin) return false;
+    if (roleFilter === "member" && (u.is_superadmin || u.is_org_admin)) return false;
+
+    return true;
+  });
+
   return (
-    <Panel>
-      <Panel.Header title={`Users (${users.data.length})`} />
-      <Panel.Body flush>
-        <table className="simple-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Organisations</th><th>Status</th><th>Superadmin</th><th></th></tr></thead>
-          <tbody>
-            {users.data.map((user) => {
-              const isMe = user.id === myUserId;
-              return (
-                <tr key={user.id}>
-                  <td>{user.full_name} {isMe && <Badge tone="brand">you</Badge>}</td>
-                  <td>{user.email}</td>
-                  <td>{user.organizations.join(", ") || "—"}</td>
-                  <td><Badge tone={user.is_active ? "brand" : "danger"}>{user.is_active ? "active" : "deactivated"}</Badge></td>
-                  <td>{user.is_superadmin ? <Badge tone="warning">superadmin</Badge> : "—"}</td>
-                  <td style={{ display: "flex", gap: 6 }}>
-                    <Button size="sm" variant={user.is_active ? "danger" : "secondary"} disabled={isMe} onClick={() => update.mutate({ id: user.id, flags: { is_active: !user.is_active } })}>
-                      {user.is_active ? "Deactivate" : "Reactivate"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={isMe || (!user.is_superadmin && user.organizations.length > 0)}
-                      title={!user.is_superadmin && user.organizations.length > 0 ? "Belongs to an organisation — superadmins have no tenancy" : undefined}
-                      onClick={() => update.mutate({ id: user.id, flags: { is_superadmin: !user.is_superadmin } })}
-                    >
-                      {user.is_superadmin ? "Revoke admin" : "Make admin"}
-                    </Button>
+    <div className="admin-users-container">
+      {/* Top Metric Cards */}
+      <div className="admin-users-stats-grid">
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
+            <UsersIcon size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{allUsers.length}</span>
+            <span className="admin-user-stat-label">Total Users</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+            <UserCheck size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{activeCount}</span>
+            <span className="admin-user-stat-label">Active Users</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#ede9fe", color: "#7c3aed" }}>
+            <ShieldCheck size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{orgAdminCount}</span>
+            <span className="admin-user-stat-label">Org Admins</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#fef3c7", color: "#d97706" }}>
+            <ShieldAlert size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{superAdminCount}</span>
+            <span className="admin-user-stat-label">Superadmins</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Users Table Card */}
+      <div className="admin-users-card">
+        {/* Toolbar: Search, Org Filter & Role Filter Pills */}
+        <div className="admin-users-toolbar">
+          <div className="admin-users-search-group">
+            <div className="admin-users-search-box">
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <select
+              className="admin-users-org-select"
+              value={selectedOrg}
+              onChange={(e) => setSelectedOrg(e.target.value)}
+            >
+              <option value="all">All Organisations ({allUsers.length})</option>
+              {allOrganizations.map((org) => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-users-filter-pills">
+            <button
+              type="button"
+              className={`admin-user-pill-btn ${roleFilter === "all" ? "is-active" : ""}`}
+              onClick={() => setRoleFilter("all")}
+            >
+              All ({allUsers.length})
+            </button>
+            <button
+              type="button"
+              className={`admin-user-pill-btn ${roleFilter === "org_admin" ? "is-active" : ""}`}
+              onClick={() => setRoleFilter("org_admin")}
+            >
+              Org Admins ({orgAdminCount})
+            </button>
+            <button
+              type="button"
+              className={`admin-user-pill-btn ${roleFilter === "member" ? "is-active" : ""}`}
+              onClick={() => setRoleFilter("member")}
+            >
+              Members ({allUsers.length - superAdminCount - orgAdminCount})
+            </button>
+            <button
+              type="button"
+              className={`admin-user-pill-btn ${roleFilter === "superadmin" ? "is-active" : ""}`}
+              onClick={() => setRoleFilter("superadmin")}
+            >
+              Superadmins ({superAdminCount})
+            </button>
+          </div>
+        </div>
+
+        {/* Users Table */}
+        <div className="sub-plan-table-wrapper">
+          <table className="sub-plan-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Organisation</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined On</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => {
+                const isMe = user.id === myUserId;
+                const avatar = getAvatarStyle(user.id);
+                const initials = getUserInitials(user.full_name);
+
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="admin-user-cell">
+                        <span
+                          className="admin-user-avatar"
+                          style={{ background: avatar.bg, color: avatar.color }}
+                        >
+                          {initials}
+                        </span>
+                        <div className="admin-user-info-col">
+                          <span className="admin-user-name">
+                            {user.full_name} {isMe && <Badge tone="brand">you</Badge>}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ color: "#475569", fontSize: 13 }}>{user.email}</span>
+                    </td>
+                    <td>
+                      {user.organizations.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {user.organizations.map((org) => (
+                            <Badge key={org} tone="neutral">
+                              {org}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>Platform (Global)</span>
+                      )}
+                    </td>
+                    <td>
+                      {user.is_superadmin ? (
+                        <span className="admin-role-badge-super">SUPERADMIN</span>
+                      ) : user.is_org_admin ? (
+                        <span className="admin-role-badge-org-admin">ORG ADMIN</span>
+                      ) : (
+                        <span className="admin-role-badge-member">MEMBER</span>
+                      )}
+                    </td>
+                    <td>
+                      <Badge tone={user.is_active ? "brand" : "danger"}>
+                        {user.is_active ? "ACTIVE" : "DEACTIVATED"}
+                      </Badge>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                        {formatAdminDate(user.created_at)}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="admin-user-actions-row">
+                        {/* Reset Password Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-key"
+                          title="Reset Password"
+                          onClick={() => setResetTargetUser(user)}
+                        >
+                          <Key size={14} />
+                        </button>
+
+                        {/* Deactivate / Reactivate Status Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-power"
+                          disabled={isMe || update.isPending}
+                          title={user.is_active ? "Deactivate user" : "Reactivate user"}
+                          onClick={() =>
+                            update.mutate({ id: user.id, flags: { is_active: !user.is_active } })
+                          }
+                        >
+                          <Power size={14} />
+                        </button>
+
+                        {/* Superadmin Toggle Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn"
+                          disabled={
+                            isMe ||
+                            (!user.is_superadmin && user.organizations.length > 0) ||
+                            update.isPending
+                          }
+                          title={
+                            !user.is_superadmin && user.organizations.length > 0
+                              ? "Belongs to an organisation — superadmins have no tenancy"
+                              : user.is_superadmin
+                              ? "Revoke Superadmin"
+                              : "Make Superadmin"
+                          }
+                          onClick={() =>
+                            update.mutate({
+                              id: user.id,
+                              flags: { is_superadmin: !user.is_superadmin },
+                            })
+                          }
+                        >
+                          <Shield size={14} color={user.is_superadmin ? "#d97706" : "#64748b"} />
+                        </button>
+
+                        {/* Delete User Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-danger"
+                          disabled={isMe || deleteUser.isPending}
+                          title={isMe ? "You cannot delete yourself" : "Delete user"}
+                          onClick={() => setDeleteTargetUser(user)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "36px", color: "#64748b" }}>
+                    No users found matching your search or filters.
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Panel.Body>
-    </Panel>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Password Reset Modal */}
+      {resetTargetUser && (
+        <UserPasswordResetDialog
+          user={resetTargetUser}
+          onClose={() => setResetTargetUser(null)}
+          onReset={async (password) => {
+            await resetPassword.mutateAsync({ id: resetTargetUser.id, password });
+          }}
+          pending={resetPassword.isPending}
+        />
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {deleteTargetUser && (
+        <UserDeleteDialog
+          user={deleteTargetUser}
+          onClose={() => setDeleteTargetUser(null)}
+          onConfirm={async () => {
+            await deleteUser.mutateAsync(deleteTargetUser.id);
+          }}
+          pending={deleteUser.isPending}
+        />
+      )}
+    </div>
   );
 }

@@ -11,7 +11,12 @@ from app.core.database import get_session
 from app.core.envelope import success
 from app.core.errors import AppError
 from app.shared.context import Principal
-from app.slices.admin.schemas import OrganizationCreate, SubscriptionUpdate, UserFlagsUpdate
+from app.slices.admin.schemas import (
+    OrganizationCreate,
+    SubscriptionUpdate,
+    UserFlagsUpdate,
+    UserPasswordReset,
+)
 from app.slices.audit import api as audit_api
 from app.slices.chatbots import api as chatbots_api
 from app.slices.conversations import api as conversations_api
@@ -60,13 +65,21 @@ async def _conversations_used(session: AsyncSession, *, organization_id: uuid.UU
     )
 
 
-def _user(summary: identity_api.UserSummary, organizations: list[str]) -> dict:
+def _user(
+    summary: identity_api.UserSummary,
+    organizations: list[str],
+    roles: list[str] | None = None,
+) -> dict:
+    roles_list = roles or []
+    is_org_admin = any(r.lower() in ("owner", "admin") for r in roles_list)
     return {
         "id": str(summary.id),
         "email": summary.email,
         "full_name": summary.full_name,
         "is_active": summary.is_active,
         "is_superadmin": summary.is_superadmin,
+        "is_org_admin": is_org_admin,
+        "roles": roles_list,
         "created_at": summary.created_at.isoformat() if summary.created_at else None,
         "organizations": organizations,
     }
@@ -199,9 +212,16 @@ async def list_users(
     _: identity_api.UserSummary = Depends(require_superadmin),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    organizations = await tenancy_api.platform_user_organizations(session)
+    memberships = await tenancy_api.platform_user_memberships_summary(session)
     return success(
-        [_user(u, organizations.get(u.id, [])) for u in await identity_api.platform_list_users(session)]
+        [
+            _user(
+                u,
+                memberships.get(u.id, {}).get("organizations", []),
+                memberships.get(u.id, {}).get("roles", []),
+            )
+            for u in await identity_api.platform_list_users(session)
+        ]
     )
 
 
@@ -240,5 +260,56 @@ async def update_user(
         },
     )
     await session.commit()
-    organizations = await tenancy_api.platform_user_organizations(session)
-    return success(_user(updated, organizations.get(user_id, [])))
+    memberships = await tenancy_api.platform_user_memberships_summary(session)
+    return success(
+        _user(
+            updated,
+            memberships.get(user_id, {}).get("organizations", []),
+            memberships.get(user_id, {}).get("roles", []),
+        )
+    )
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: uuid.UUID,
+    body: UserPasswordReset,
+    admin: identity_api.UserSummary = Depends(require_superadmin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    success_reset = await identity_api.reset_user_password(
+        session, user_id=user_id, new_password=body.password
+    )
+    if not success_reset:
+        raise AppError(code="NOT_FOUND", message="User not found", status_code=404)
+    await audit_api.record(
+        session,
+        action=audit_api.actions.ADMIN_USER_PASSWORD_RESET,
+        actor_id=admin.id,
+        target_type="user",
+        target_id=str(user_id),
+    )
+    await session.commit()
+    return success({"message": "Password reset successfully"})
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    admin: identity_api.UserSummary = Depends(require_superadmin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    if user_id == admin.id:
+        raise AppError(code="CANNOT_DELETE_SELF", message="You cannot delete yourself", status_code=400)
+    deleted = await identity_api.delete_user(session, user_id=user_id)
+    if not deleted:
+        raise AppError(code="NOT_FOUND", message="User not found", status_code=404)
+    await audit_api.record(
+        session,
+        action=audit_api.actions.ADMIN_USER_DELETED,
+        actor_id=admin.id,
+        target_type="user",
+        target_id=str(user_id),
+    )
+    await session.commit()
+    return success({"deleted": True})

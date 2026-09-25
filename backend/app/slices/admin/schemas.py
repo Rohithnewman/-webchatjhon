@@ -40,3 +40,7 @@ class UserFlagsUpdate(BaseModel):
         if self.is_active is None and self.is_superadmin is None:
             raise ValueError("supply is_active and/or is_superadmin")
         return self
+
+
+class UserPasswordReset(BaseModel):
+    password: str = Field(min_length=8, max_length=128)
