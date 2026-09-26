@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { AmbotLogo } from "./AmbotLogo";
 import { LoginForm } from "./LoginForm";
 import styles from "./LoginPanel.module.css";
-import { SocialLogin } from "./SocialLogin";
 
 /** The stable half of the page. Nothing here animates on a loop. */
 export function LoginPanel() {
@@ -21,16 +20,6 @@ export function LoginPanel() {
         </header>
 
         <LoginForm onNotice={setNotice} />
-
-        <div className={styles.divider}>
-          <span>or continue with</span>
-        </div>
-
-        <SocialLogin
-          onUnavailable={(provider) =>
-            setNotice(`${provider} sign-in isn't connected yet. Use your email and password.`)
-          }
-        />
 
         {notice ? (
           <p className={styles.notice} role="status">

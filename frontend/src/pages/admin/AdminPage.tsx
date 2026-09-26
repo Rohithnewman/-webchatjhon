@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Bot,
+  Building2,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -15,6 +17,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
   UserCheck,
@@ -1481,12 +1484,22 @@ function Organizations() {
   const toast = useToast();
   const client = useQueryClient();
   const [showCreateOrg, setShowCreateOrg] = useState(false);
-  const orgs = useQuery({ queryKey: ["admin", "organizations"], queryFn: adminApi.organizations });
+  const [editOrg, setEditOrg] = useState<AdminOrganization | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [planFilter, setPlanFilter] = useState<"all" | "free" | "pro" | "enterprise">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended">("all");
+
+  const orgs = useQuery({ queryKey: ["admin", "organizations"], queryFn: adminApi.organizations, refetchInterval: 10_000 });
+
   const update = useMutation({
     mutationFn: (input: { id: string; patch: SubscriptionPatch }) => adminApi.updateSubscription(input.id, input.patch),
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ["admin"] }); toast.success("Subscription updated"); },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("Subscription updated successfully");
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to update subscription"),
   });
+
   const deleteOrg = useMutation({
     mutationFn: (id: string) => adminApi.deleteOrganization(id),
     onSuccess: () => {
@@ -1498,54 +1511,344 @@ function Organizations() {
 
   if (!orgs.data) return <LoadingState label="Loading organisations" />;
 
+  const allOrgs = orgs.data;
+  const activeCount = allOrgs.filter((o) => o.subscription.effective_status === "active").length;
+  const totalWorkspaces = allOrgs.reduce((acc, o) => acc + (o.workspace_count || 1), 0);
+  const totalBotsUsed = allOrgs.reduce((acc, o) => acc + (o.subscription.chatbots_used || 0), 0);
+
+  const freeCount = allOrgs.filter((o) => o.subscription.plan === "free").length;
+  const proCount = allOrgs.filter((o) => o.subscription.plan === "pro").length;
+  const entCount = allOrgs.filter((o) => o.subscription.plan === "enterprise").length;
+
+  const filteredOrgs = allOrgs.filter((o) => {
+    const matchesSearch = o.name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (planFilter !== "all" && o.subscription.plan !== planFilter) return false;
+
+    if (statusFilter === "active" && o.subscription.effective_status !== "active") return false;
+    if (statusFilter === "suspended" && o.subscription.effective_status === "active") return false;
+
+    return true;
+  });
+
   const handleDelete = (org: AdminOrganization) => {
-    if (window.confirm(`Delete organisation "${org.name}"? This is restricted to Superadmins and removes all tenant data.`)) {
+    if (window.confirm(`Are you sure you want to delete organisation "${org.name}"? This is restricted to Superadmins and will remove all tenant workspaces.`)) {
       deleteOrg.mutate(org.id);
     }
   };
 
-  return (
-    <Panel>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px" }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Organisations ({orgs.data.length})</h3>
-        <button
-          type="button"
-          className="sub-primary-btn"
-          onClick={() => setShowCreateOrg(true)}
-        >
-          <Plus size={15} /> Create Organisation
-        </button>
-      </div>
-      <Panel.Body flush>
-        <table className="simple-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Plan</th>
-              <th>Status</th>
-              <th>Period</th>
-              <th>Effective</th>
-              <th>Limits</th>
-              <th>Usage this month</th>
-              <th>Workspaces</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orgs.data.map((org) => (
-              <OrganizationRow
-                key={org.id}
-                org={org}
-                onPatch={(patch) => update.mutateAsync({ id: org.id, patch })}
-                onDelete={() => handleDelete(org)}
-                pending={update.isPending || deleteOrg.isPending}
-              />
-            ))}
-          </tbody>
-        </table>
-      </Panel.Body>
+  const handleToggleSuspend = (org: AdminOrganization) => {
+    const isCurrentlyActive = org.subscription.effective_status === "active";
+    const confirmMessage = isCurrentlyActive
+      ? `Suspend organisation "${org.name}"? Active chatbots will stop replying.`
+      : `Reactivate organisation "${org.name}"?`;
+    if (window.confirm(confirmMessage)) {
+      update.mutate({
+        id: org.id,
+        patch: { status: isCurrentlyActive ? "suspended" : "active" },
+      });
+    }
+  };
 
+  return (
+    <div className="admin-orgs-container">
+      {/* Executive Metric Cards */}
+      <div className="admin-users-stats-grid">
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
+            <Building2 size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{allOrgs.length}</span>
+            <span className="admin-user-stat-label">Total Organisations</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+            <CheckCircle2 size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{activeCount}</span>
+            <span className="admin-user-stat-label">Active Subscriptions</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#ede9fe", color: "#7c3aed" }}>
+            <Layers size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{totalWorkspaces}</span>
+            <span className="admin-user-stat-label">Workspaces</span>
+          </div>
+        </div>
+
+        <div className="admin-user-stat-card">
+          <div className="admin-user-stat-icon" style={{ background: "#e0f2fe", color: "#0284c7" }}>
+            <Bot size={22} />
+          </div>
+          <div className="admin-user-stat-info">
+            <span className="admin-user-stat-val">{totalBotsUsed}</span>
+            <span className="admin-user-stat-label">Deployed Chatbots</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Organisations Table Card */}
+      <div className="admin-users-card">
+        {/* Search, Filter & Action Toolbar */}
+        <div className="admin-users-toolbar">
+          <div className="admin-users-search-group">
+            <div className="admin-users-search-box">
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search organisation by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <select
+              className="admin-users-org-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "suspended")}
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="suspended">Suspended Only</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div className="admin-users-filter-pills">
+              <button
+                type="button"
+                className={`admin-user-pill-btn ${planFilter === "all" ? "is-active" : ""}`}
+                onClick={() => setPlanFilter("all")}
+              >
+                All ({allOrgs.length})
+              </button>
+              <button
+                type="button"
+                className={`admin-user-pill-btn ${planFilter === "free" ? "is-active" : ""}`}
+                onClick={() => setPlanFilter("free")}
+              >
+                Free ({freeCount})
+              </button>
+              <button
+                type="button"
+                className={`admin-user-pill-btn ${planFilter === "pro" ? "is-active" : ""}`}
+                onClick={() => setPlanFilter("pro")}
+              >
+                Pro ({proCount})
+              </button>
+              <button
+                type="button"
+                className={`admin-user-pill-btn ${planFilter === "enterprise" ? "is-active" : ""}`}
+                onClick={() => setPlanFilter("enterprise")}
+              >
+                Enterprise ({entCount})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="sub-primary-btn"
+              onClick={() => setShowCreateOrg(true)}
+            >
+              <Plus size={15} /> Create Organisation
+            </button>
+          </div>
+        </div>
+
+        {/* Organisations Table */}
+        <div className="sub-plan-table-wrapper">
+          <table className="sub-plan-table">
+            <thead>
+              <tr>
+                <th>Organisation</th>
+                <th>Plan & Billing</th>
+                <th>Status</th>
+                <th>Monthly Capacity & Usage</th>
+                <th>Effective Limits</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrgs.map((org) => {
+                const sub = org.subscription;
+                const avatar = getAvatarStyle(org.id);
+                const initials = getUserInitials(org.name);
+
+                // Calculate progress percentages
+                const seatsPct = sub.seat_limit ? Math.min(100, Math.round((sub.seats_used / sub.seat_limit) * 100)) : 10;
+                const botsPct = sub.chatbot_limit ? Math.min(100, Math.round((sub.chatbots_used / sub.chatbot_limit) * 100)) : 10;
+                const convosPct = sub.conversation_limit ? Math.min(100, Math.round((sub.conversations_used / sub.conversation_limit) * 100)) : 10;
+
+                const hasOverrides =
+                  sub.limits_overridden.seats ||
+                  sub.limits_overridden.chatbots ||
+                  sub.limits_overridden.conversations;
+
+                return (
+                  <tr key={org.id}>
+                    <td>
+                      <div className="admin-org-cell">
+                        <span
+                          className="admin-org-avatar"
+                          style={{ background: avatar.bg, color: avatar.color }}
+                        >
+                          {initials}
+                        </span>
+                        <div className="admin-org-info-col">
+                          <span
+                            className="admin-org-name"
+                            style={{ cursor: "pointer" }}
+                            title="Click to configure organization settings"
+                            onClick={() => setEditOrg(org)}
+                          >
+                            {org.name}
+                          </span>
+                          <span className="admin-org-meta">
+                            {org.workspace_count} Workspace{org.workspace_count === 1 ? "" : "s"} · Created {formatAdminDate(org.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div>
+                        {sub.plan === "free" && <span className="admin-plan-badge-free">FREE TIER</span>}
+                        {sub.plan === "pro" && <span className="admin-plan-badge-pro">PRO TIER</span>}
+                        {sub.plan === "enterprise" && <span className="admin-plan-badge-enterprise">ENTERPRISE</span>}
+                        <div className="admin-org-period-text">
+                          {sub.ends_at ? `Expires: ${formatAdminDate(sub.ends_at)}` : "No expiry (Lifetime)"}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <Badge tone={sub.effective_status === "active" ? "brand" : "warning"}>
+                        {sub.effective_status.toUpperCase()}
+                      </Badge>
+                    </td>
+
+                    <td>
+                      <div className="admin-org-usage-box">
+                        {/* Seats progress */}
+                        <div className="admin-usage-row">
+                          <span className="admin-usage-label">Seats:</span>
+                          <span className="admin-usage-val">{sub.seats_used} / {sub.seat_limit ?? "∞"}</span>
+                        </div>
+                        <div className="admin-usage-progress">
+                          <div
+                            className="admin-usage-progress-bar"
+                            style={{
+                              width: `${seatsPct}%`,
+                              background: seatsPct >= 100 ? "#dc2626" : seatsPct >= 75 ? "#f59e0b" : "#2563eb",
+                            }}
+                          />
+                        </div>
+
+                        {/* Bots progress */}
+                        <div className="admin-usage-row" style={{ marginTop: 2 }}>
+                          <span className="admin-usage-label">Bots:</span>
+                          <span className="admin-usage-val">{sub.chatbots_used} / {sub.chatbot_limit ?? "∞"}</span>
+                        </div>
+                        <div className="admin-usage-progress">
+                          <div
+                            className="admin-usage-progress-bar"
+                            style={{
+                              width: `${botsPct}%`,
+                              background: botsPct >= 100 ? "#dc2626" : botsPct >= 75 ? "#f59e0b" : "#10b981",
+                            }}
+                          />
+                        </div>
+
+                        {/* Conversations progress */}
+                        <div className="admin-usage-row" style={{ marginTop: 2 }}>
+                          <span className="admin-usage-label">Chats:</span>
+                          <span className="admin-usage-val">{sub.conversations_used} / {sub.conversation_limit ?? "∞"}</span>
+                        </div>
+                        <div className="admin-usage-progress">
+                          <div
+                            className="admin-usage-progress-bar"
+                            style={{
+                              width: `${convosPct}%`,
+                              background: convosPct >= 100 ? "#dc2626" : convosPct >= 75 ? "#f59e0b" : "#8b5cf6",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="admin-limits-summary-pill">
+                        <span>{sub.seat_limit ?? "∞"} users · {sub.chatbot_limit ?? "∞"} bots</span>
+                        <span>{sub.conversation_limit ? `${sub.conversation_limit.toLocaleString()} chats/mo` : "Unlimited chats"}</span>
+                        {hasOverrides && (
+                          <span className="admin-limits-override-tag">
+                            ✨ Custom Overrides
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="admin-user-actions-row">
+                        {/* Configure Plan & Limits Modal Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-key"
+                          title="Configure Customer Plan, Expiry & Limit Overrides"
+                          onClick={() => setEditOrg(org)}
+                        >
+                          <SlidersHorizontal size={14} />
+                        </button>
+
+                        {/* Suspend / Reactivate Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-power"
+                          disabled={update.isPending}
+                          title={sub.effective_status === "active" ? "Suspend Organisation" : "Reactivate Organisation"}
+                          onClick={() => handleToggleSuspend(org)}
+                        >
+                          <Power size={14} />
+                        </button>
+
+                        {/* Delete Organisation Button */}
+                        <button
+                          type="button"
+                          className="admin-user-btn is-danger"
+                          disabled={deleteOrg.isPending}
+                          title="Delete Organisation"
+                          onClick={() => handleDelete(org)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredOrgs.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "36px", color: "#64748b" }}>
+                    No organisations match your search query or filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Create Organization Modal */}
       {showCreateOrg && (
         <CreateOrganizationDialog
           onClose={() => setShowCreateOrg(false)}
@@ -1554,180 +1857,19 @@ function Organizations() {
           }}
         />
       )}
-    </Panel>
-  );
-}
 
-function OrganizationRow({
-  org,
-  onPatch,
-  onDelete,
-  pending,
-}: {
-  org: AdminOrganization;
-  onPatch: (patch: SubscriptionPatch) => Promise<AdminOrganization>;
-  onDelete: () => void;
-  pending: boolean;
-}) {
-  const sub = org.subscription;
-  const fireAndForget = (patch: SubscriptionPatch) => { onPatch(patch).catch(() => {}); };
-  return (
-    <tr>
-      <td><strong>{org.name}</strong></td>
-      <td>
-        <Select value={sub.plan} disabled={pending} onChange={(e) => fireAndForget({ plan: e.target.value as Plan })} aria-label={`Plan for ${org.name}`}>
-          {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </Select>
-      </td>
-      <td>
-        <Select value={sub.status} disabled={pending} onChange={(e) => fireAndForget({ status: e.target.value as SubscriptionStatus })} aria-label={`Status for ${org.name}`}>
-          {SUBSCRIPTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-      </td>
-      <td>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
-            type="date"
-            className="subscription-date-input"
-            value={sub.starts_at}
-            disabled={pending}
-            onChange={(e) => e.target.value && fireAndForget({ starts_at: e.target.value })}
-            aria-label={`Start date for ${org.name}`}
-          />
-          <span aria-hidden>→</span>
-          <input
-            type="date"
-            className="subscription-date-input"
-            value={sub.ends_at ?? ""}
-            disabled={pending}
-            onChange={(e) => fireAndForget({ ends_at: e.target.value || null })}
-            aria-label={`End date for ${org.name}`}
-          />
-          {sub.ends_at ? (
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => fireAndForget({ ends_at: null })}>
-              Clear
-            </Button>
-          ) : null}
-        </div>
-      </td>
-      <td><Badge tone={EFFECTIVE_TONE[sub.effective_status]}>{sub.effective_status}</Badge></td>
-      <td>
-        <div className="limit-input-row">
-          <LimitInput
-            label={`User limit for ${org.name}`}
-            value={sub.seat_limit}
-            overridden={sub.limits_overridden.seats}
-            pending={pending}
-            onCommit={(v) => onPatch({ seat_limit: v })}
-          />
-          <LimitInput
-            label={`Bot limit for ${org.name}`}
-            value={sub.chatbot_limit}
-            overridden={sub.limits_overridden.chatbots}
-            pending={pending}
-            onCommit={(v) => onPatch({ chatbot_limit: v })}
-          />
-          <LimitInput
-            label={`Conversation limit for ${org.name}`}
-            value={sub.conversation_limit}
-            overridden={sub.limits_overridden.conversations}
-            pending={pending}
-            onCommit={(v) => onPatch({ conversation_limit: v })}
-          />
-        </div>
-      </td>
-      <td>
-        users {formatLimit(sub.seats_used, sub.seat_limit)} · bots {formatLimit(sub.chatbots_used, sub.chatbot_limit)} · chats {formatLimit(sub.conversations_used, sub.conversation_limit)} (this month)
-      </td>
-      <td>{org.workspace_count}</td>
-      <td>{new Date(org.created_at).toLocaleDateString()}</td>
-      <td>
-        <button
-          type="button"
-          className="admin-row-action-btn is-delete"
-          title="Delete Organisation"
-          disabled={pending}
-          onClick={onDelete}
-        >
-          <Trash2 size={16} />
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-function LimitInput({
-  label,
-  value,
-  overridden,
-  pending,
-  onCommit,
-}: {
-  label: string;
-  value: number | null;
-  overridden: boolean;
-  pending: boolean;
-  onCommit: (value: number | null) => Promise<unknown>;
-}) {
-  const initial = overridden && value !== null ? String(value) : "";
-  const [draft, setDraft] = useState(initial);
-
-  useEffect(() => setDraft(initial), [initial]);
-
-  const committing = useRef(false);
-
-  const send = async (v: number | null) => {
-    committing.current = true;
-    try {
-      await onCommit(v);
-    } catch {
-      setDraft(initial);
-    } finally {
-      committing.current = false;
-    }
-  };
-
-  const commit = () => {
-    if (committing.current) return;
-    const trimmed = draft.trim();
-    if (trimmed === "") {
-      if (overridden) void send(null);
-      else setDraft("");
-      return;
-    }
-    const n = Number(trimmed);
-    if (!Number.isInteger(n) || n < 0) { setDraft(initial); return; }
-    if (overridden && n === value) return;
-    void send(n);
-  };
-
-  return (
-    <span className="limit-input-group">
-      <input
-        type="number"
-        min={0}
-        className="limit-input"
-        value={draft}
-        placeholder={value === null ? "∞" : String(value)}
-        disabled={pending}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        aria-label={label}
-      />
-      {overridden && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="limit-default-btn"
-          disabled={pending}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => { setDraft(""); void send(null); }}
-        >
-          default
-        </Button>
+      {/* Edit Organization Modal */}
+      {editOrg && (
+        <OrganizationEditDialog
+          org={editOrg}
+          onClose={() => setEditOrg(null)}
+          onSave={async (patch) => {
+            await update.mutateAsync({ id: editOrg.id, patch });
+          }}
+          pending={update.isPending}
+        />
       )}
-    </span>
+    </div>
   );
 }
 
